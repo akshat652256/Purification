@@ -12,6 +12,7 @@ from models.Reformer.DAE import DenoisingAutoEncoder
 from Data_generation import get_dataloaders
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
+import numpy as np
 
 def save_model_path(model, model_type):
     base_dir = '/kaggle/working/trained_models'
