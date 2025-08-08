@@ -178,8 +178,8 @@ class SMPPyramidDenoiser(nn.Module):
         ])
 
     def forward(self, noisy):
-        if self.v_noise and self.v_noise > 0.0:
-            noisy = noisy + self.v_noise * torch.randn_like(noisy)
+        # if self.v_noise and self.v_noise > 0.0:
+        #     noisy = noisy + self.v_noise * torch.randn_like(noisy)
 
         # SMP encoder features: list [x0, x1, ..., xD] shallow->deep
         enc_feats = self.encoder(noisy)
