@@ -10,6 +10,8 @@ from models.Classifier.Resnet import BasicBlock , ResNet18_MedMNIST
 from models.Detector.AE import SimpleAutoencoder
 from models.Reformer.DAE import DenoisingAutoEncoder
 from Data_generation import get_dataloaders
+from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import peak_signal_noise_ratio as psnr
 
 def save_model_path(model, model_type):
     base_dir = '/kaggle/working/trained_models'
