@@ -147,7 +147,7 @@ class SMPPyramidDenoiser(nn.Module):
         super().__init__()
         assert fuse_mode in ('add',), "This implementation keeps decoder unchanged; use 'add'."
 
-        self.v_noise = 0.0
+        self.v_noise = 25
         self.fuse_mode = fuse_mode
 
         # SMP encoder/decoder
@@ -179,7 +179,7 @@ class SMPPyramidDenoiser(nn.Module):
 
     def forward(self, noisy):
         if self.v_noise and self.v_noise > 0.0:
-            noisy = noisy + self.v_noise * torch.randn_like(noisy)
+            noisy = noisy + self.v_noise * torch.randn_like(noisy) # this is None, this is an issue.
 
         # SMP encoder features: list [x0, x1, ..., xD] shallow->deep
         enc_feats = self.encoder(noisy)
