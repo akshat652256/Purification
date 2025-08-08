@@ -44,8 +44,8 @@ def compute_jsd_threshold(detector_model, dataloader, device='cpu'):
             images = images.to(device)
             outputs = detector_model(images)
             # Flatten images and outputs to 2D tensors: (batch_size, features)
-            images_flat = images.view(images.size(0), -1)
-            outputs_flat = outputs.view(outputs.size(0), -1)
+            images_flat = images.reshape(images.size(0), -1)
+            outputs_flat = outputs.reshape(outputs.size(0), -1)
             # Normalize each sample to sum to 1 to form probability distributions
             images_prob = images_flat / images_flat.sum(dim=1, keepdim=True)
             outputs_prob = outputs_flat / outputs_flat.sum(dim=1, keepdim=True)
@@ -69,8 +69,8 @@ def filter_adversarial_images_by_jsd(detector_model, adversarial_dataset, jsd_th
             outputs = detector_model(images)
 
             # Flatten images and reconstructions to (batch_size, features)
-            images_flat = images.view(images.size(0), -1)
-            outputs_flat = outputs.view(outputs.size(0), -1)
+            images_flat = images.reshape(images.size(0), -1)
+            outputs_flat = outputs.reshape(outputs.size(0), -1)
 
             # Normalize to valid probability distributions
             images_prob = images_flat / images_flat.sum(dim=1, keepdim=True)
