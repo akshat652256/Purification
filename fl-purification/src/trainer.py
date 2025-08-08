@@ -5,6 +5,7 @@ from sklearn.metrics import f1_score
 from utils.misc.metrics import compute_psnr_ssim
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
+import numpy as np
 
 def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
                    device='cuda' if torch.cuda.is_available() else 'cpu'):
