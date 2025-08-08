@@ -22,6 +22,43 @@ def save_model_path(model, model_type):
     torch.save(model.state_dict(), save_path)
     print(f"Model saved to {save_path}")
 
+
+def load_model_from_path(model_type, device='cuda' if torch.cuda.is_available() else 'cpu'):
+    """
+    Load a trained model of the specified type from the predefined saved model path.
+
+    Args:
+        model_type (str): One of 'classifier', 'detector', 'reformer'.
+        device (str): Device to map the model to ('cuda' or 'cpu').
+
+    Returns:
+        model: The loaded model with weights.
+    """
+    base_dir = '/kaggle/working/trained_models'
+    model_dir = os.path.join(base_dir, model_type.capitalize())
+    model_path = os.path.join(model_dir, f'{model_type}_model.pth')
+
+    # Instantiate model architecture based on model_type
+    if model_type == 'classifier':
+        model = ResNet18_MedMNIST()
+    elif model_type == 'detector':
+        model = SimpleAutoencoder()
+    elif model_type == 'reformer':
+        model = DenoisingAutoEncoder()
+    else:
+        raise ValueError(f"Unknown model_type: {model_type}")
+
+    # Load saved weights
+    if os.path.exists(model_path):
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.to(device)
+        model.eval()
+        print(f"Loaded {model_type} model from {model_path}")
+    else:
+        raise FileNotFoundError(f"Model file not found at {model_path}")
+
+    return model
+
 def main():
     parser = argparse.ArgumentParser(description="Train a model on MedMNIST dataset")
     parser.add_argument('--dataset', type=str, default='bloodmnist', help="Dataset name from MedMNIST")
