@@ -9,28 +9,18 @@ from torchattacks import CW
 import shutil
 from utils.misc.Attacks import fgsm_attack,pgd_attack,carlini_attack
 
-data_flag = 'bloodmnist'
-download = True
-# Get dataset info and class
-info = INFO[data_flag]
-DataClass = getattr(medmnist, info['python_class'])
-transform = transforms.Compose([
-    transforms.ToTensor()
-])
-# Create training and test dataset objects with the transform
-train_dataset = DataClass(split='train', transform=transform, download=download)
-val_dataset = DataClass(split='val', transform=transform, download=download)
-test_dataset = DataClass(split='test', transform=transform, download=download)
+def get_dataloaders(data_flag, batch_size=64, download=True):
+    info = INFO[data_flag]
+    DataClass = getattr(medmnist, info['python_class'])
+    transform = transforms.Compose([transforms.ToTensor()])
+    train_dataset = DataClass(split='train', transform=transform, download=download)
+    val_dataset = DataClass(split='val', transform=transform, download=download)
+    test_dataset = DataClass(split='test', transform=transform, download=download)
 
-# Create DataLoaders
-train_loader = DataLoader(dataset=train_dataset, batch_size=64, shuffle=True)
-val_loader = DataLoader(dataset=val_dataset, batch_size=64, shuffle=True)
-test_loader = DataLoader(dataset=test_dataset, batch_size=64, shuffle=True)
-
-# Example: Iterate through the training data
-for batch_idx, (images, labels) in enumerate(train_loader):
-    print(f"Batch {batch_idx}: images shape {images.shape}, labels shape {labels.shape}")
-    break  
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+    return train_loader, val_loader, test_loader
 
 
 def generate_adversarial_dataset(model, dataloader, attack_type, device, **attack_params):
@@ -120,7 +110,8 @@ def zip_directory(dir_path, zip_output_path):
     print(f"Files zipped successfully to {zip_output_path}")
     return zip_output_path
 
-#example usage
-#perturbed_loader = generate_adversarial_dataset(model, test_loader, 'cw', DEVICE, c=1e-1, kappa=5, steps=1000, lr=0.005)
-#save_perturbed_dataset(perturbed_loader, base_dir='medmnist', dataset_name='bloodmnist', attack_type='cw', strength='strong')
-#zip_file = zip_directory('/kaggle/working', '/kaggle/working/all_files.zip')
+#example usage 
+# train_loader, val_loader, test_loader = get_dataloaders('bloodmnist')
+# perturbed_loader = generate_adversarial_dataset(model, test_loader, 'cw', DEVICE, c=1e-1, kappa=5, steps=1000, lr=0.005)
+# save_perturbed_dataset(perturbed_loader, base_dir='medmnist', dataset_name='bloodmnist', attack_type='cw', strength='strong')
+# zip_file = zip_directory('/kaggle/working', '/kaggle/working/all_files.zip')

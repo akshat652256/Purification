@@ -8,19 +8,15 @@ from trainer import train_classifier, train_detector, train_reformer
 from models.Classifier.Resnet import BasicBlock , ResNet18_MedMNIST
 from models.Detector.AE import SimpleAutoencoder
 from models.Reformer.DAE import DenoisingAutoEncoder
+from Data_generation import get_dataloaders
 
-def get_dataloaders(data_flag, batch_size=64, download=True):
-    info = INFO[data_flag]
-    DataClass = getattr(medmnist, info['python_class'])
-    transform = transforms.Compose([transforms.ToTensor()])
-    train_dataset = DataClass(split='train', transform=transform, download=download)
-    val_dataset = DataClass(split='val', transform=transform, download=download)
-    test_dataset = DataClass(split='test', transform=transform, download=download)
-
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
-    return train_loader, val_loader, test_loader
+def save_model_path(model, model_type):
+    base_dir = '/kaggle/working/trained_models'
+    save_dir = os.path.join(base_dir, model_type.capitalize())
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, f'{model_type}_model.pth')
+    torch.save(model.state_dict(), save_path)
+    print(f"Model saved to {save_path}")
 
 def main():
     parser = argparse.ArgumentParser(description="Train a model on MedMNIST dataset")
@@ -36,17 +32,18 @@ def main():
     # Here you need to instantiate your model according to the chosen model type
     # For example:
     if args.model == 'classifier':
-        model = ResNet18_MedMNIST()  # Replace with your classifier model init
+        model = ResNet18_MedMNIST()  
         train_func = train_classifier
     elif args.model == 'detector':
-        model = SimpleAutoencoder()  # Replace with your detector model init
+        model = SimpleAutoencoder()  
         train_func = train_detector
     elif args.model == 'reformer':
-        model = DenoisingAutoEncoder()  # Replace with your reformer model init
+        model = DenoisingAutoEncoder()  
         train_func = train_reformer
 
     # Train the model
     trained_model = train_func(model, train_loader, val_loader, epochs=args.epochs, lr=args.lr)
+    save_model_path(trained_model, args.model)
 
 if __name__ == "__main__":
     main()
