@@ -6,6 +6,7 @@ import medmnist
 from medmnist import INFO
 import torch.nn.functional as F
 from torchattacks import CW
+import shutil
 from utils.misc.Attacks import fgsm_attack,pgd_attack,carlini_attack
 
 data_flag = 'bloodmnist'
@@ -102,6 +103,24 @@ def save_perturbed_dataset(perturbed_loader, base_dir, dataset_name, attack_type
     print(f"Saved perturbed dataset under: {dir_path}")
     return dir_path
 
-# Call after generating the loader, for example:
-# If your base_dir is "medmnist" or "Others", you can set this per dataset.
-# Example for bloodmnist, fgsm strong, base dir "medmnist"
+
+def zip_directory(dir_path, zip_output_path):
+    """
+    Zips the entire contents of dir_path into a zip file at zip_output_path.
+
+    Args:
+        dir_path (str): Directory to zip.
+        zip_output_path (str): Full path including filename where zip will be saved.
+
+    Returns:
+        str: Path to the created zip file.
+    """
+    base_name = zip_output_path.replace('.zip', '')
+    shutil.make_archive(base_name=base_name, format='zip', root_dir=dir_path)
+    print(f"Files zipped successfully to {zip_output_path}")
+    return zip_output_path
+
+#example usage
+#perturbed_loader = generate_adversarial_dataset(model, test_loader, 'cw', DEVICE, c=1e-1, kappa=5, steps=1000, lr=0.005)
+#save_perturbed_dataset(perturbed_loader, base_dir='medmnist', dataset_name='bloodmnist', attack_type='cw', strength='strong')
+#zip_file = zip_directory('/kaggle/working', '/kaggle/working/all_files.zip')
