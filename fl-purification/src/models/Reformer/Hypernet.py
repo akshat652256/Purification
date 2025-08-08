@@ -213,6 +213,17 @@ class AdaptiveLaplacianPyramidUNet(nn.Module):
         print(f"Created {len(self.feature_adapters)} feature adapters")
         print(f"Using adaptive kernels of size {kernel_size}x{kernel_size}")
     
+    def forward(self, x):
+        z = self.encoder(x)
+        # Add noise to bottleneck if enabled
+        if self.v_noise > 0.0:
+            noise = self.v_noise * torch.randn_like(z)
+            z = z + noise
+        out = self.decoder(z)
+        # Crop to (28,28) if shape != (3,28,28)
+        out = F.nn.center_crop(out, [28, 28]) # check this once 
+        return out
+
     def forward(self, noisy_image):
         """
         Forward pass with adaptive kernel prediction
