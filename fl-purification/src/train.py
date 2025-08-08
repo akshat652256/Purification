@@ -85,6 +85,7 @@ def main():
         model = DenoisingAutoEncoder()  
         train_func = train_reformer
     elif args.model == 'reformer' and args.reformer_type == "hiprnet":
+        print("Using Hypernetwork Reformer")
         model = SMPPyramidDenoiser() # Im changing this each time, fix this logix later
         train_func = train_reformer_hipyrnet # have to make modifications to this or create a new function for hiprnet related trianers
 
