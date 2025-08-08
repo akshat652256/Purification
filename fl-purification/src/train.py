@@ -10,6 +10,7 @@ from models.Classifier.Resnet import BasicBlock , ResNet18_MedMNIST
 from models.Detector.AE import SimpleAutoencoder
 from models.Reformer.DAE import DenoisingAutoEncoder
 from models.Reformer.Hypernet import AdaptiveLaplacianPyramidUNet
+from models.Reformer.SMP import SMPPyramidDenoiser
 from Data_generation import get_dataloaders
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
@@ -84,7 +85,7 @@ def main():
         model = DenoisingAutoEncoder()  
         train_func = train_reformer
     elif args.model == 'reformer' and args.reformer_type == "hiprnet":
-        model = AdaptiveLaplacianPyramidUNet()
+        model = SMPPyramidDenoiser() # Im changing this each time, fix this logix later
         train_func = train_reformer_hipyrnet # have to make modifications to this or create a new function for hiprnet related trianers
 
     # Train the model
