@@ -2,22 +2,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import f1_score
+from utils.misc.metrics import compute_psnr_ssim
+from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import peak_signal_noise_ratio as psnr
 
-def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3, device='cuda' if torch.cuda.is_available() else 'cpu'):
-    """
-    Train the SimpleAutoencoder model on the training dataset with optional validation.
-
-    Args:
-        model: The autoencoder model to train.
-        train_loader: DataLoader for the training set.
-        val_loader: DataLoader for the validation set (optional).
-        epochs: Number of training epochs.
-        lr: Learning rate for the optimizer.
-        device: Device to run the training on ('cuda' or 'cpu').
-
-    Returns:
-        Trained model.
-    """
+def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
+                   device='cuda' if torch.cuda.is_available() else 'cpu'):
     model = model.to(device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -28,7 +18,7 @@ def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3, dev
 
         for images, _ in train_loader:
             images = images.to(device)
-            
+
             optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, images)
@@ -42,36 +32,31 @@ def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3, dev
         if val_loader is not None:
             model.eval()
             val_loss = 0.0
+            psnr_all = []
+            ssim_all = []
             with torch.no_grad():
                 for images, _ in val_loader:
                     images = images.to(device)
                     outputs = model(images)
                     loss = criterion(outputs, images)
                     val_loss += loss.item() * images.size(0)
+                    # Compute PSNR and SSIM for this batch
+                    batch_psnr, batch_ssim = compute_psnr_ssim(images, outputs)
+                    psnr_all.append(batch_psnr)
+                    ssim_all.append(batch_ssim)
+
             val_loss /= len(val_loader.dataset)
-            print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
+            avg_psnr = np.mean(psnr_all)
+            avg_ssim = np.mean(ssim_all)
+            print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, "
+                  f"Val PSNR: {avg_psnr:.4f}, Val SSIM: {avg_ssim:.4f}")
         else:
             print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}")
 
     return model
 
-
-
-def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3, device='cuda' if torch.cuda.is_available() else 'cpu'):
-    """
-    Train the DenoisingAutoEncoder model on the given dataset.
-
-    Args:
-        model: The autoencoder model to train.
-        train_loader: DataLoader for training data.
-        val_loader: DataLoader for validation data (optional).
-        epochs: Number of epochs.
-        lr: Learning rate.
-        device: 'cuda' or 'cpu'.
-
-    Returns:
-        Trained model.
-    """
+def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
+                   device='cuda' if torch.cuda.is_available() else 'cpu'):
     model = model.to(device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -98,6 +83,8 @@ def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3, dev
         if val_loader is not None:
             model.eval()
             val_loss = 0.0
+            psnr_all = []
+            ssim_all = []
             with torch.no_grad():
                 for images, _ in val_loader:
                     images = images.to(device)
@@ -106,8 +93,16 @@ def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3, dev
                     reg_loss = model.get_l2_loss()
                     loss = mse_loss + reg_loss
                     val_loss += loss.item() * images.size(0)
+                    # Compute PSNR and SSIM for this batch
+                    batch_psnr, batch_ssim = compute_psnr_ssim(images, outputs)
+                    psnr_all.append(batch_psnr)
+                    ssim_all.append(batch_ssim)
+
             val_loss /= len(val_loader.dataset)
-            print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
+            avg_psnr = np.mean(psnr_all)
+            avg_ssim = np.mean(ssim_all)
+            print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, "
+                  f"Val PSNR: {avg_psnr:.4f}, Val SSIM: {avg_ssim:.4f}")
         else:
             print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}")
 
