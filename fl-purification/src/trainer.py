@@ -180,3 +180,57 @@ def train_classifier(model, train_loader, val_loader, epochs=20, lr=1e-3, device
               f"Train F1: {train_f1:.4f}, Val F1: {val_f1:.4f}")
 
     return model
+
+
+def train_reformer_hiprnet(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
+                   device='cuda' if torch.cuda.is_available() else 'cpu'):
+    model = model.to(device)
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    for epoch in range(1, epochs + 1):
+        model.train()
+        train_loss = 0.0
+
+        for images, _ in train_loader:
+            images = images.to(device)
+
+            optimizer.zero_grad()
+            outputs = model(images)
+            mse_loss = criterion(outputs, images)
+            reg_loss = model.get_l2_loss()
+            loss = mse_loss + reg_loss
+            loss.backward()
+            optimizer.step()
+
+            train_loss += loss.item() * images.size(0)
+
+        train_loss /= len(train_loader.dataset)
+
+        if val_loader is not None:
+            model.eval()
+            val_loss = 0.0
+            psnr_all = []
+            ssim_all = []
+            with torch.no_grad():
+                for images, _ in val_loader:
+                    images = images.to(device)
+                    outputs = model(images)
+                    mse_loss = criterion(outputs, images)
+                    reg_loss = model.get_l2_loss()
+                    loss = mse_loss + reg_loss
+                    val_loss += loss.item() * images.size(0)
+                    # Compute PSNR and SSIM for this batch
+                    batch_psnr, batch_ssim = compute_psnr_ssim(images, outputs)
+                    psnr_all.append(batch_psnr)
+                    ssim_all.append(batch_ssim)
+
+            val_loss /= len(val_loader.dataset)
+            avg_psnr = np.mean(psnr_all)
+            avg_ssim = np.mean(ssim_all)
+            print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, "
+                  f"Val PSNR: {avg_psnr:.4f}, Val SSIM: {avg_ssim:.4f}")
+        else:
+            print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}")
+
+    return model
