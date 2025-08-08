@@ -83,8 +83,8 @@ def filter_adversarial_images_by_jsd(detector_model, adversarial_dataset, jsd_th
             keep_indices = (batch_jsd <= jsd_threshold).nonzero(as_tuple=True)[0]
 
             if len(keep_indices) > 0:
-                filtered_images.append(images[keep_indices].cpu())
-                filtered_labels.append(labels[keep_indices].cpu())
+                filtered_images.append(images[keep_indices.cpu()].cpu())
+                filtered_labels.append(labels[keep_indices.cpu()].cpu())
 
     if len(filtered_images) == 0:
         print("No images found below the JSD threshold.")
