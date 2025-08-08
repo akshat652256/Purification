@@ -23,8 +23,7 @@ def compute_psnr_ssim(images, outputs):
         ssim_val = ssim(x, y, channel_axis=-1, data_range=1.0)
         psnr_scores.append(psnr_val)
         ssim_scores.append(ssim_val)
-    print(f"Average PSNR: {np.mean(psnr_scores):.4f}")
-    print(f"Average SSIM: {np.mean(ssim_scores):.4f}")
+    return np.mean(psnr_scores), np.mean(ssim_scores)
     
 
 def jsd(p, q, eps=1e-6):
