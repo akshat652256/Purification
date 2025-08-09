@@ -22,6 +22,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Load models
@@ -32,36 +33,25 @@ def main():
     # Load clean dataloaders
     train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
 
-    # Compute JSD threshold
+    # Compute JSD threshold on clean validation data using detector reconstructions
     jsd_threshold = compute_jsd_threshold(detector_model, val_loader, device=device)
     print(f"Computed JSD threshold: {jsd_threshold}")
 
-    # Create adversarial dataset
+    # Create adversarial dataset instance with parameters from parser args
     adversarial_dataset = AdversarialDataset(
         base_dir=args.base_dir,
         dataset_name=args.dataset,
         attack_type=args.attack_type,
         strength=args.strength
     )
-    adversarial_loader = DataLoader(adversarial_dataset, batch_size=1, shuffle=False)
 
-    # 1) Just send adversarial dataset directly to classifier
-    classify_dataset(classifier_model, adversarial_loader, device=device, label_name='Raw Adversarial')
-
-    # 2) Filter adversarial dataset using detector and pass to classifier
+    # Filter adversarial images based on JSD threshold
     filtered_loader = filter_adversarial_images_by_jsd(detector_model, adversarial_dataset, jsd_threshold, device=device)
+
     if filtered_loader is not None:
-        classify_dataset(classifier_model, filtered_loader, device=device, label_name='Filtered-Adversarial')
-
-
-    # 3) Pass adversarial dataset to reformer and pass to classifier
-    recon_loader = pass_through_reformer(reformer_model, adversarial_loader, device=device)
-    classify_dataset(classifier_model, recon_loader, device=device, label_name='Reformed-Adversarial')
-
-    # 4) Filter, pass to reformer, then to classifier (current pipeline)
-    if filtered_loader is not None:
-        filtered_recon_loader = pass_through_reformer(reformer_model, filtered_loader, device=device)
-        classify_dataset(classifier_model, filtered_recon_loader, device=device, label_name='Filtered+Reformed-Adversarial')
+        reconstructions = reconstruct_with_reformer(reformer_model, filtered_loader, device=device)
+        print(f"Number of batches processed through reformer: {len(reconstructions)}")
+        classify_reconstructed_images(classifier_model, reconstructions, device=device)
     else:
         print("No images passed the JSD threshold filtering.")
 

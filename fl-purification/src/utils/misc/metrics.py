@@ -104,50 +104,38 @@ def filter_adversarial_images_by_jsd(detector_model, adversarial_dataset, jsd_th
     return filtered_loader
 
 
-def classify_dataset(classifier_model, loader, device='cpu', label_name=''):
-    classifier_model.eval()
-    all_preds = []
-    all_labels = []
-    with torch.no_grad():
-        for images, labels in loader:
-            # Do NOT blindly squeeze the 0th dim
-            # Instead, check if batch dim exists properly
-            if images.dim() == 3:
-                # batch dim lost, unsqueeze to restore
-                images = images.unsqueeze(0)
-            images = images.to(device)
-
-            if labels.dim() == 1:
-                labels = labels.to(device)
-            else:
-                labels = labels.squeeze(0).to(device)
-
-            outputs = classifier_model(images)
-            preds = torch.argmax(outputs, dim=1)
-            all_preds.extend(preds.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
-    f1 = f1_score(all_labels, all_preds, average='macro')
-    print(f"[{label_name}] Classification F1 score: {f1:.4f}")
-    return f1
-
-
-def pass_through_reformer(reformer_model, loader, device='cpu'):
+def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
+    """
+    Returns:
+        List of tuples: Each (input_images, reconstructed_images, labels) for the batch.
+    """
     reformer_model.eval()
-    reconstructed = []
-    labels_list = []
+    reconstructions = []
     with torch.no_grad():
-        for images, labels in loader:
-            images = images.squeeze(0).to(device)  # Remove extra batch dimension if present
-            labels = labels.squeeze(0).to(device)
-            outputs = reformer_model(images)
-            # Ensure outputs keep batch dimension
-            if outputs.dim() == 3:  # If batch dimension is lost
-                outputs = outputs.unsqueeze(0)
-            reconstructed.append(outputs.cpu())
-            labels_list.append(labels.cpu())
-    all_recon = torch.cat(reconstructed, dim=0)
-    all_labels = torch.cat(labels_list, dim=0)
-    recon_dataset = TensorDataset(all_recon, all_labels)
-    recon_loader = DataLoader(recon_dataset, batch_size=loader.batch_size, shuffle=False)
-    return recon_loader
+        for images, labels in filtered_loader:
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs = reformer_model(images)  # Reconstructed images
+            reconstructions.append((images.cpu(), outputs.cpu(), labels.cpu()))
+    return reconstructions
 
+def classify_reconstructed_images(classifier_model, reconstructions, device='cpu'):
+    """
+    Classifies reconstructed images and computes the macro F1 score.
+    """
+    classifier_model.eval()
+    all_labels = []
+    all_preds = []
+    
+    with torch.no_grad():
+        for _, recon_images, labels in reconstructions:
+            recon_images = recon_images.to(device)
+            labels = labels.to(device)
+            outputs = classifier_model(recon_images)
+            preds = torch.argmax(outputs, dim=1)
+            all_labels.extend(labels.cpu().numpy())
+            all_preds.extend(preds.cpu().numpy())
+
+    f1 = f1_score(all_labels, all_preds, average='macro')
+    print(f"F1 score of reconstructed images classification: {f1:.4f}")
+    
