@@ -48,8 +48,7 @@ def get_adversarial_dataloader(adversarial_dataset, shuffle=False):
     # Use the existing batch size from the loaded batches
     batch_size = adversarial_dataset.data[0]['images'].size(0) if adversarial_dataset.num_batches > 0 else 64
     
-    # Create DataLoader with batch_size=1 to avoid extra stacking of already batched data
-    loader = DataLoader(adversarial_dataset, batch_size=1, shuffle=shuffle)
+    loader = DataLoader(adversarial_dataset, batch_size, shuffle=shuffle)
 
     return loader
 
@@ -157,9 +156,6 @@ def classify_images(classifier_model, reconstructions, device='cpu'):
         for _, recon_images, labels in reconstructions:
             recon_images = recon_images.to(device)
             labels = labels.to(device)
-            
-            recon_images = recon_images.reshape(-1, 3, 28, 28)
-            labels = labels.reshape(-1)
             outputs = classifier_model(recon_images)
             preds = torch.argmax(outputs, dim=1)
             all_labels.extend(labels.cpu().numpy())
