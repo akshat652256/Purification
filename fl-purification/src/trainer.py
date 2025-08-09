@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import f1_score
 from utils.misc.metrics import compute_psnr_ssim
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
@@ -9,9 +8,10 @@ from sklearn.metrics import roc_auc_score, f1_score
 from torch.nn import functional as F
 import numpy as np
 from tqdm import tqdm
+import wandb
 
 
-def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
+def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3, use_wandb=False,
                    device='cuda' if torch.cuda.is_available() else 'cpu'):
     model = model.to(device)
     criterion = nn.MSELoss()
@@ -34,6 +34,9 @@ def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
 
         train_loss /= len(train_loader.dataset)
 
+        val_loss = None
+        avg_psnr = None
+        avg_ssim = None
         if val_loader is not None:
             model.eval()
             val_loss = 0.0
@@ -58,9 +61,19 @@ def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
         else:
             print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}")
 
+        # Log epoch-level metrics to wandb (after epoch)
+        if use_wandb:
+            wandb.log({
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "val_loss": val_loss if val_loader else None,
+                "val_psnr": avg_psnr if val_loader else None,
+                "val_ssim": avg_ssim if val_loader else None
+            })
+
     return model
 
-def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
+def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3, use_wandb=False,
                    device='cuda' if torch.cuda.is_available() else 'cpu'):
     model = model.to(device)
     criterion = nn.MSELoss()
@@ -85,6 +98,9 @@ def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
 
         train_loss /= len(train_loader.dataset)
 
+        val_loss = None
+        avg_psnr = None
+        avg_ssim = None
         if val_loader is not None:
             model.eval()
             val_loss = 0.0
@@ -111,9 +127,20 @@ def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
         else:
             print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}")
 
+        # Log epoch-level metrics to wandb (after epoch)
+        if use_wandb:
+            wandb.log({
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "val_loss": val_loss if val_loader else None,
+                "val_psnr": avg_psnr if val_loader else None,
+                "val_ssim": avg_ssim if val_loader else None
+            })
+
     return model
 
-def train_classifier(model, train_loader, val_loader, epochs=20, lr=1e-3, device='cuda' if torch.cuda.is_available() else 'cpu'):
+def train_classifier(model, train_loader, val_loader, epochs=20, lr=1e-3, use_wandb=False,
+                      device='cuda' if torch.cuda.is_available() else 'cpu'):
     """
     Train the ResNet18_MedMNIST classifier on the dataset.
 
@@ -196,16 +223,26 @@ def train_classifier(model, train_loader, val_loader, epochs=20, lr=1e-3, device
         except ValueError:
             val_auc = float('nan')  # Handle case where AUC cannot be computed
 
+        if use_wandb:
+            wandb.log({
+                "epoch": epoch,
+                "train_loss": avg_train_loss,
+                "val_loss": avg_val_loss,
+                "train_f1": train_f1,
+                "val_f1": val_f1,
+                "train_auc": train_auc,
+                "val_auc": val_auc
+            })
+
         print(f"Epoch {epoch}/{epochs} --> "
               f"Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, "
               f"Train F1: {train_f1:.4f}, Val F1: {val_f1:.4f},"
-              f" Train AUC: {train_auc:.4f}, Val AUC: {val_auc:.4f}")
-        
-
+              f" Train AUC: {train_auc:.4f}, Val AUC: {val_auc:.4f}")   
     return model
 
 
-def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=1e-3, device='cuda' if torch.cuda.is_available() else 'cpu'):
+def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=1e-3,use_wandb = False,
+                             device='cuda' if torch.cuda.is_available() else 'cpu'):
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.MSELoss()
@@ -229,6 +266,9 @@ def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=
 
         train_loss /= len(train_loader.dataset)
 
+        val_loss = None
+        avg_psnr = None
+        avg_ssim = None
         if val_loader is not None:
             model.eval()
             val_loss = 0.0
@@ -252,6 +292,15 @@ def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=
             val_loss /= len(val_loader.dataset)
             avg_psnr = np.mean(psnr_scores)
             avg_ssim = np.mean(ssim_scores)
+            # wandb logging after validation
+            if use_wandb:
+                wandb.log({
+                    "epoch": epoch,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "val_psnr": avg_psnr,
+                    "val_ssim": avg_ssim
+                })
 
             print(f"Epoch {epoch}/{epochs} Summary: "
                   f"Train Loss: {train_loss:.6f} | "
