@@ -126,10 +126,11 @@ def pass_through_reformer(reformer_model, loader, device='cpu'):
     labels_list = []
     with torch.no_grad():
         for images, labels in loader:
-            images = images.to(device)
+            images = images.squeeze(0).to(device)  # Remove the extra batch dimension
+            labels = labels.squeeze(0).to(device)
             outputs = reformer_model(images)
             reconstructed.append(outputs.cpu())
-            labels_list.append(labels)
+            labels_list.append(labels.cpu())
     all_recon = torch.cat(reconstructed, dim=0)
     all_labels = torch.cat(labels_list, dim=0)
     recon_dataset = TensorDataset(all_recon, all_labels)
