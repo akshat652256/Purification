@@ -110,10 +110,18 @@ def classify_dataset(classifier_model, loader, device='cpu', label_name=''):
     all_labels = []
     with torch.no_grad():
         for images, labels in loader:
-            print(f"Images shape before squeeze: {images.shape}")
-            images = images.squeeze(0).to(device)  # Remove extra batch dim if present
-            print(f"Images shape after squeeze: {images.shape}")
-            labels = labels.squeeze(0).to(device)
+            # Do NOT blindly squeeze the 0th dim
+            # Instead, check if batch dim exists properly
+            if images.dim() == 3:
+                # batch dim lost, unsqueeze to restore
+                images = images.unsqueeze(0)
+            images = images.to(device)
+
+            if labels.dim() == 1:
+                labels = labels.to(device)
+            else:
+                labels = labels.squeeze(0).to(device)
+
             outputs = classifier_model(images)
             preds = torch.argmax(outputs, dim=1)
             all_preds.extend(preds.cpu().numpy())
