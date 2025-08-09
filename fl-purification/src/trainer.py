@@ -5,8 +5,11 @@ from sklearn.metrics import f1_score
 from utils.misc.metrics import compute_psnr_ssim
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
+from sklearn.metrics import roc_auc_score, f1_score
+from torch.nn import functional as F
 import numpy as np
 from tqdm import tqdm
+
 
 def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3,
                    device='cuda' if torch.cuda.is_available() else 'cpu'):
@@ -134,13 +137,14 @@ def train_classifier(model, train_loader, val_loader, epochs=20, lr=1e-3, device
         train_loss_total = 0
         train_targets = []
         train_preds = []
+        train_probs = []
 
         for images, labels in train_loader:
             images = images.to(device)
             labels = labels.to(device).long().squeeze()
 
             optimizer.zero_grad()
-            outputs = model(images)
+            outputs = model(images) #logits
 
             loss = criterion(outputs, labels)
             loss.backward()
@@ -149,17 +153,25 @@ def train_classifier(model, train_loader, val_loader, epochs=20, lr=1e-3, device
             train_loss_total += loss.item() * images.size(0)
             
             preds = torch.argmax(outputs, dim=1)
+            probs = F.softmax(outputs, dim=1)
             train_preds.extend(preds.cpu().numpy())
+            train_probs.extend(probs.cpu().numpy())
             train_targets.extend(labels.cpu().numpy())
 
         avg_train_loss = train_loss_total / len(train_loader.dataset)
         train_f1 = f1_score(train_targets, train_preds, average='weighted')
+        try:
+            train_auc = roc_auc_score(train_targets, train_probs, multi_class='ovr')
+        except ValueError:
+            train_auc = float('nan')
 
         # Validation
         model.eval()
         val_loss_total = 0
         val_targets = []
         val_preds = []
+        val_probs = []
+
         with torch.no_grad():
             for images, labels in val_loader:
                 images = images.to(device)
@@ -170,15 +182,24 @@ def train_classifier(model, train_loader, val_loader, epochs=20, lr=1e-3, device
                 val_loss_total += loss.item() * images.size(0)
 
                 preds = torch.argmax(outputs, dim=1)
+                probs = F.softmax(outputs, dim=1)
+
                 val_preds.extend(preds.cpu().numpy())
+                val_probs.extend(probs.cpu().numpy())
                 val_targets.extend(labels.cpu().numpy())
 
         avg_val_loss = val_loss_total / len(val_loader.dataset)
         val_f1 = f1_score(val_targets, val_preds, average='weighted')
+        try:
+            val_auc = roc_auc_score(val_targets, val_probs, multi_class='ovr')
+        except ValueError:
+            val_auc = float('nan')  # Handle case where AUC cannot be computed
 
         print(f"Epoch {epoch}/{epochs} --> "
               f"Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, "
-              f"Train F1: {train_f1:.4f}, Val F1: {val_f1:.4f}")
+              f"Train F1: {train_f1:.4f}, Val F1: {val_f1:.4f},"
+              f" Train AUC: {train_auc:.4f}, Val AUC: {val_auc:.4f}")
+        
 
     return model
 
