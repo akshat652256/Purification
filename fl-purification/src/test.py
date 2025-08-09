@@ -3,8 +3,9 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 from train import load_model_from_path
 from Data_generation import get_dataloaders
-from utils.misc.metrics import jsd, compute_jsd_threshold, compute_psnr_ssim, filter_adversarial_images_by_jsd
-from dataloader import AdversarialDataset  # Your provided AdversarialDataset class
+from utils.misc.metrics import *
+from dataloader import AdversarialDataset
+from sklearn.metrics import f1_score  
 
 
 def parse_args():
@@ -48,7 +49,9 @@ def main():
     filtered_loader = filter_adversarial_images_by_jsd(detector_model, adversarial_dataset, jsd_threshold, device=device)
 
     if filtered_loader is not None:
-        print(f"Filtered dataset size: {len(filtered_loader.dataset)} images")
+        reconstructions = reconstruct_with_reformer(reformer_model, filtered_loader, device=device)
+        print(f"Number of batches processed through reformer: {len(reconstructions)}")
+        classify_reconstructed_images(classifier_model, reconstructions, device=device)
     else:
         print("No images passed the JSD threshold filtering.")
 
