@@ -154,9 +154,9 @@ def train_classifier(model, train_loader, val_loader, epochs=20, lr=1e-3, device
             
             preds = torch.argmax(outputs, dim=1)
             probs = F.softmax(outputs, dim=1)
-            train_preds.extend(preds.cpu().numpy())
-            train_probs.extend(probs.cpu().numpy())
-            train_targets.extend(labels.cpu().numpy())
+            train_preds.extend(preds.cpu().detach().numpy())
+            train_probs.extend(probs.cpu().detach().numpy())
+            train_targets.extend(labels.cpu().detach().numpy())
 
         avg_train_loss = train_loss_total / len(train_loader.dataset)
         train_f1 = f1_score(train_targets, train_preds, average='weighted')
@@ -184,9 +184,10 @@ def train_classifier(model, train_loader, val_loader, epochs=20, lr=1e-3, device
                 preds = torch.argmax(outputs, dim=1)
                 probs = F.softmax(outputs, dim=1)
 
-                val_preds.extend(preds.cpu().numpy())
-                val_probs.extend(probs.cpu().numpy())
-                val_targets.extend(labels.cpu().numpy())
+                val_preds.extend(preds.cpu().detach().numpy())
+                val_probs.extend(probs.cpu().detach().numpy())
+                val_targets.extend(labels.cpu().detach().numpy())
+
 
         avg_val_loss = val_loss_total / len(val_loader.dataset)
         val_f1 = f1_score(val_targets, val_preds, average='weighted')
