@@ -71,10 +71,10 @@ def main():
     parser.add_argument('--reformer-type', type=str, default="dae", help="set reformer to use")
     parser.add_argument('--model', type=str, default='classifier', choices=['classifier', 'detector', 'reformer'],
                         help="Choose which model training function to use")
-    parser.add_argument('--wandb', action='store_true', help="Enable Weights & Biases logging")
+    parser.add_argument('--use_wandb', action='store_true', help="Enable Weights & Biases logging")
     args = parser.parse_args()
 
-    if args.wandb:
+    if args.use_wandb:
         wandb.login(key="93e0092bafec12515dce3493023285e27311c27a")
         wandb.init(project="fl-purification", 
                    entity="invi-bhagyesh-manipal",
@@ -109,8 +109,8 @@ def main():
         train_func = train_reformer_hipyrnet
 
     # Train the model
-    trained_model = train_func(model, train_loader, val_loader, epochs=args.epochs, lr=args.lr)
-    if args.wandb:
+    trained_model = train_func(model, train_loader, val_loader, epochs=args.epochs, lr=args.lr, use_wandb=args.use_wandb)
+    if args.use_wandb:
         wandb.save("*.pth")
         wandb.finish()
     save_model_path(trained_model, args.model)
