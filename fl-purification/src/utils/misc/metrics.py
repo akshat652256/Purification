@@ -157,6 +157,7 @@ def classify_images(classifier_model, reconstructions, device='cpu'):
         for _, recon_images, labels in reconstructions:
             recon_images = recon_images.to(device)
             labels = labels.to(device)
+            recon_images = recon_images.reshape(-1, 3, 28, 28)
             outputs = classifier_model(recon_images)
             preds = torch.argmax(outputs, dim=1)
             all_labels.extend(labels.cpu().numpy())
