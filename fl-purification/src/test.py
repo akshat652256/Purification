@@ -43,7 +43,7 @@ def main():
         attack_type=args.attack_type,
         strength=args.strength
     )
-    adversarial_loader = DataLoader(adversarial_dataset, batch_size=adversarial_dataset.data[0]['images'].size(0), shuffle=False)
+    adversarial_loader = DataLoader(adversarial_dataset, batch_size=1, shuffle=False)
 
     # 1) Just send adversarial dataset directly to classifier
     classify_dataset(classifier_model, adversarial_loader, device=device, label_name='Raw Adversarial')
@@ -54,7 +54,7 @@ def main():
         classify_dataset(classifier_model, filtered_loader, device=device, label_name='Filtered-Adversarial')
     else:
         print("No images passed the JSD threshold filtering.")
-        
+
     # 3) Pass adversarial dataset to reformer and pass to classifier
     recon_loader = pass_through_reformer(reformer_model, adversarial_loader, device=device)
     classify_dataset(classifier_model, recon_loader, device=device, label_name='Reformed-Adversarial')

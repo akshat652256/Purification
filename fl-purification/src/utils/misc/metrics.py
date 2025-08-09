@@ -110,8 +110,8 @@ def classify_dataset(classifier_model, loader, device='cpu', label_name=''):
     all_labels = []
     with torch.no_grad():
         for images, labels in loader:
-            images = images.to(device)
-            labels = labels.to(device)
+            images = images.squeeze(0).to(device)  # Remove extra dimension
+            labels = labels.squeeze(0).to(device)
             outputs = classifier_model(images)
             preds = torch.argmax(outputs, dim=1)
             all_preds.extend(preds.cpu().numpy())
