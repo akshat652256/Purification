@@ -147,7 +147,7 @@ class SMPPyramidDenoiser(nn.Module):
         super().__init__()
         assert fuse_mode in ('add',), "This implementation keeps decoder unchanged; use 'add'."
 
-        self.v_noise = 25
+        self.v_noise = 0.1
         self.fuse_mode = fuse_mode
 
         # SMP encoder/decoder
