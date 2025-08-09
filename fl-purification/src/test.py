@@ -44,16 +44,34 @@ def main():
         attack_type=args.attack_type,
         strength=args.strength
     )
+    
+    adversarial_loader = get_adversarial_dataloader(adversarial_dataset)
 
     # Filter adversarial images based on JSD threshold
     filtered_loader = filter_adversarial_images_by_jsd(detector_model, adversarial_dataset, jsd_threshold, device=device)
+    
 
+    # 1) None pipeline
+    print(f"None pipeline")
+    images = identity_pass(adversarial_loader)
+    classify_images(classifier_model, images, device = device)
+
+    # 2) Detector only pipeline
     if filtered_loader is not None:
+        print(f"Detector only pipeline")
+        images = identity_pass(filtered_loader)
+        classify_images(classifier_model, images, device = device)
+
+    # 3) Reformer only pipeline
+    print(f"Reformer only pipeline")
+    reconstructions = reconstruct_with_reformer(reformer_model, adversarial_loader, device=device)
+    classify_images(classifier_model,reconstructions,device=device)
+
+    # 4) Full pipeline
+    if filtered_loader is not None:
+        print(f"Full pipeline")
         reconstructions = reconstruct_with_reformer(reformer_model, filtered_loader, device=device)
-        print(f"Number of batches processed through reformer: {len(reconstructions)}")
-        classify_reconstructed_images(classifier_model, reconstructions, device=device)
-    else:
-        print("No images passed the JSD threshold filtering.")
+        classify_images(classifier_model, reconstructions, device=device)
 
 
 if __name__ == "__main__":
