@@ -34,9 +34,7 @@ def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3, use
 
         train_loss /= len(train_loader.dataset)
 
-        val_loss = None
-        avg_psnr = None
-        avg_ssim = None
+
         if val_loader is not None:
             model.eval()
             val_loss = 0.0
@@ -98,9 +96,7 @@ def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3, use
 
         train_loss /= len(train_loader.dataset)
 
-        val_loss = None
-        avg_psnr = None
-        avg_ssim = None
+
         if val_loader is not None:
             model.eval()
             val_loss = 0.0
@@ -266,9 +262,7 @@ def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=
 
         train_loss /= len(train_loader.dataset)
 
-        val_loss = None
-        avg_psnr = None
-        avg_ssim = None
+
         if val_loader is not None:
             model.eval()
             val_loss = 0.0
