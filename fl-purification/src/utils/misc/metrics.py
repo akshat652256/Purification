@@ -53,15 +53,15 @@ def get_adversarial_dataloader(adversarial_dataset, shuffle=False):
 
     return loader
 
-def identity_pass(dataloader, device='cpu'):
-    images = []
+def identity_pass(dataloader, device='cpu'): # prepares data for classify_images function
+    collected = []
     with torch.no_grad():
         for images, labels in dataloader:
             images = images.to(device)
             labels = labels.to(device)
             outputs = images  
-            images.append((images.cpu(), outputs.cpu(), labels.cpu()))
-    return images
+            collected.append((images.cpu(), outputs.cpu(), labels.cpu()))
+    return collected
 
 def compute_jsd_threshold(detector_model, dataloader, device='cpu'):
     detector_model.eval()
