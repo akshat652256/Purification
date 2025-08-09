@@ -16,6 +16,7 @@ from Data_generation import get_dataloaders
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
 import numpy as np
+import wandb
 
 def save_model_path(model, model_type):
     base_dir = '/kaggle/working/trained_models'
@@ -70,7 +71,20 @@ def main():
     parser.add_argument('--reformer-type', type=str, default="dae", help="set reformer to use")
     parser.add_argument('--model', type=str, default='classifier', choices=['classifier', 'detector', 'reformer'],
                         help="Choose which model training function to use")
+    parser.add_argument('--wandb', action='store_true', help="Enable Weights & Biases logging")
     args = parser.parse_args()
+
+    if args.wandb:
+        wandb.login(key="93e0092bafec12515dce3493023285e27311c27a")
+        wandb.init(project="fl-purification", 
+                   entity="invi-bhagyesh-manipal",
+                   config={
+            "dataset": args.dataset,
+            "epochs": args.epochs,
+            "learning_rate": args.lr,
+            "model": args.model,
+            "reformer_type": args.reformer_type
+        })
 
     train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
 
@@ -96,6 +110,9 @@ def main():
 
     # Train the model
     trained_model = train_func(model, train_loader, val_loader, epochs=args.epochs, lr=args.lr)
+    if args.wandb:
+        wandb.save("*.pth")
+        wandb.finish()
     save_model_path(trained_model, args.model)
 
 if __name__ == "__main__":
