@@ -48,7 +48,7 @@ def get_adversarial_dataloader(adversarial_dataset, shuffle=False):
     # Use the existing batch size from the loaded batches
     batch_size = adversarial_dataset.data[0]['images'].size(0) if adversarial_dataset.num_batches > 0 else 64
     
-    loader = DataLoader(adversarial_dataset, batch_size, shuffle=shuffle)
+    loader = DataLoader(adversarial_dataset, batch_size=1, shuffle=shuffle)
 
     return loader
 
@@ -58,6 +58,8 @@ def identity_pass(dataloader, device='cpu'): # prepares data for classify_images
         for images, labels in dataloader:
             images = images.to(device)
             labels = labels.to(device)
+            images = images.reshape(-1, 3, 28, 28)
+            labels = labels.reshape(-1)
             outputs = images  
             collected.append((images.cpu(), outputs.cpu(), labels.cpu()))
     return collected
