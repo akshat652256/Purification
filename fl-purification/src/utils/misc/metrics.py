@@ -142,6 +142,8 @@ def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
         for images, labels in filtered_loader:
             images = images.to(device)
             labels = labels.to(device)
+            images = images.reshape(-1, 3, 28, 28)
+            labels = labels.reshape(-1)
             outputs = reformer_model(images)  # Reconstructed images
             reconstructions.append((images.cpu(), outputs.cpu(), labels.cpu()))
     return reconstructions
