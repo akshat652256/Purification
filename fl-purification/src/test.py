@@ -52,8 +52,7 @@ def main():
     filtered_loader = filter_adversarial_images_by_jsd(detector_model, adversarial_dataset, jsd_threshold, device=device)
     if filtered_loader is not None:
         classify_dataset(classifier_model, filtered_loader, device=device, label_name='Filtered-Adversarial')
-    else:
-        print("No images passed the JSD threshold filtering.")
+
 
     # 3) Pass adversarial dataset to reformer and pass to classifier
     recon_loader = pass_through_reformer(reformer_model, adversarial_loader, device=device)

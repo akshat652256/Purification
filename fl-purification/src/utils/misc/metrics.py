@@ -110,7 +110,9 @@ def classify_dataset(classifier_model, loader, device='cpu', label_name=''):
     all_labels = []
     with torch.no_grad():
         for images, labels in loader:
-            images = images.squeeze(0).to(device)  # Remove extra dimension
+            print(f"Images shape before squeeze: {images.shape}")
+            images = images.squeeze(0).to(device)  # Remove extra batch dim if present
+            print(f"Images shape after squeeze: {images.shape}")
             labels = labels.squeeze(0).to(device)
             outputs = classifier_model(images)
             preds = torch.argmax(outputs, dim=1)
@@ -120,15 +122,19 @@ def classify_dataset(classifier_model, loader, device='cpu', label_name=''):
     print(f"[{label_name}] Classification F1 score: {f1:.4f}")
     return f1
 
+
 def pass_through_reformer(reformer_model, loader, device='cpu'):
     reformer_model.eval()
     reconstructed = []
     labels_list = []
     with torch.no_grad():
         for images, labels in loader:
-            images = images.squeeze(0).to(device)  # Remove the extra batch dimension
+            images = images.squeeze(0).to(device)  # Remove extra batch dimension if present
             labels = labels.squeeze(0).to(device)
             outputs = reformer_model(images)
+            # Ensure outputs keep batch dimension
+            if outputs.dim() == 3:  # If batch dimension is lost
+                outputs = outputs.unsqueeze(0)
             reconstructed.append(outputs.cpu())
             labels_list.append(labels.cpu())
     all_recon = torch.cat(reconstructed, dim=0)
@@ -136,3 +142,4 @@ def pass_through_reformer(reformer_model, loader, device='cpu'):
     recon_dataset = TensorDataset(all_recon, all_labels)
     recon_loader = DataLoader(recon_dataset, batch_size=loader.batch_size, shuffle=False)
     return recon_loader
+
