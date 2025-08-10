@@ -52,7 +52,8 @@ def main():
 
     # Filter adversarial images based on JSD threshold
     filtered_loader = filter_adversarial_images_by_jsd(detector_model, adversarial_dataset, jsd_threshold, device=device)
-    print(f"Number of images passing through detector: {len(filtered_loader.dataset)}")
+    if filtered_loader is not None:
+        print(f"Number of images passing through detector: {len(filtered_loader.dataset)}")
 
     # 1) None pipeline
     print(f"None pipeline")
