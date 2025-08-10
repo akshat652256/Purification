@@ -6,6 +6,7 @@ from Data_generation import get_dataloaders
 from utils.misc.metrics import *
 from dataloader import AdversarialDataset
 from sklearn.metrics import f1_score  
+from utils.misc.metrics import get_adversarial_dataloader
 
 
 def parse_args():
@@ -17,6 +18,8 @@ def parse_args():
                         help='Attack type')
     parser.add_argument('--strength', type=str, default='strong', choices=['weak', 'strong', None],
                         help="Attack strength")
+    parser.add_argument('--reformer_type', type=str, default='dae', choices=['dae', 'hiprnet', 'laplacian'],
+                        help="Type of reformer to use")
     return parser.parse_args()
 
 
@@ -28,7 +31,7 @@ def main():
     # Load models
     classifier_model = load_model_from_path('classifier', device)
     detector_model = load_model_from_path('detector', device)
-    reformer_model = load_model_from_path('reformer', device)
+    reformer_model = load_model_from_path('reformer', reformer_type=args.reformer_type, device=device)
 
     # Load clean dataloaders
     train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
