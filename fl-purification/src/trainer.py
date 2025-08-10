@@ -277,11 +277,11 @@ def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=
                     loss = criterion(outputs, noisy_images)
                     val_loss += loss.item() * noisy_images.size(0)
 
-                    psnr, ssim = compute_psnr_ssim(noisy_images, outputs)
-                    psnr_scores.append(psnr)
-                    ssim_scores.append(ssim)
+                    batch_psnr, batch_ssim = compute_psnr_ssim(noisy_images, outputs)
+                    psnr_scores.append(batch_psnr)
+                    ssim_scores.append(batch_ssim)
 
-                    val_bar.set_postfix(psnr=psnr, ssim=ssim)
+                    val_bar.set_postfix(psnr=batch_psnr, ssim=batch_ssim)
 
             val_loss /= len(val_loader.dataset)
             avg_psnr = np.mean(psnr_scores)
@@ -289,7 +289,7 @@ def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=
             # wandb logging after validation
             if use_wandb:
                 wandb.log({
-                    "epoch": epoch,
+                    "epoch": epoch, 
                     "train_loss": train_loss,
                     "val_loss": val_loss,
                     "val_psnr": avg_psnr,
