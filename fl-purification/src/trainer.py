@@ -289,7 +289,7 @@ def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=
             # wandb logging after validation
             if use_wandb:
                 wandb.log({
-                    "epoch": epoch, 
+                    "epoch": epoch,
                     "train_loss": train_loss,
                     "val_loss": val_loss,
                     "val_psnr": avg_psnr,
