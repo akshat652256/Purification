@@ -274,7 +274,7 @@ def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=
             with torch.no_grad():
                 for noisy_images, _ in val_bar:
                     noisy_images = noisy_images.to(device)
-                    outputs, _ = model(noisy_images)
+                    outputs = model(noisy_images)
                     loss = criterion(outputs, noisy_images)
                     val_loss += loss.item() * noisy_images.size(0)
 
