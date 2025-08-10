@@ -146,7 +146,7 @@ def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
             labels = labels.reshape(-1)
             outputs = reformer_model(images)  # Reconstructed images
             print(type(outputs), len(outputs))
-            reconstructions.append((images.cpu(), outputs.cpu(), labels.cpu()))
+            reconstructions.append((images.cpu(), outputs[0].cpu(), labels.cpu()))
     return reconstructions
 
 def classify_images(classifier_model, reconstructions, device='cpu'):
