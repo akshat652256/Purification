@@ -27,7 +27,7 @@ def save_model_path(model, model_type):
     print(f"Model saved to {save_path}")
 
 
-def load_model_from_path(model_type, device='cuda' if torch.cuda.is_available() else 'cpu'):
+def load_model_from_path(model_type, reformer_type, device='cuda' if torch.cuda.is_available() else 'cpu'):
     """
     Load a trained model of the specified type from the predefined saved model path.
 
@@ -47,8 +47,14 @@ def load_model_from_path(model_type, device='cuda' if torch.cuda.is_available() 
         model = ResNet18_MedMNIST()
     elif model_type == 'detector':
         model = SimpleAutoencoder()
-    elif model_type == 'reformer':
+    elif model_type == 'reformer' and reformer_type == "dae":
         model = DenoisingAutoEncoder()
+    elif model_type == 'reformer' and reformer_type == "hiprnet":
+        print("Using SMP Reformer")
+        model = SMPPyramidDenoiser()
+    elif model_type == 'reformer' and reformer_type == "laplacian":
+        print("Using Laplacian Reformer")
+        model = SimplePyramidDenoiser()
     else:
         raise ValueError(f"Unknown model_type: {model_type}")
 
