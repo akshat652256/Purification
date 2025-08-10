@@ -252,7 +252,8 @@ def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=
             noisy_images = noisy_images.to(device)
 
             optimizer.zero_grad()
-            outputs, _ = model(noisy_images)  # model returns (denoised, kernel)
+            # outputs, _ = model(noisy_images)  # model returns (denoised, kernel)
+            outputs = model(noisy_images)  # model returns (denoised)
             loss = criterion(outputs, noisy_images)
             loss.backward()
             optimizer.step()

@@ -206,4 +206,5 @@ class SMPPyramidDenoiser(nn.Module):
             residual = F.interpolate(residual, size=noisy.shape[2:], mode='bilinear', align_corners=False)
 
         denoised = noisy + residual
-        return denoised, adaptive_kernel
+        # return denoised, adaptive_kernel
+        return denoised
