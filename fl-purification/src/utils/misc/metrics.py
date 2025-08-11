@@ -16,9 +16,7 @@ def compute_psnr_ssim(images, outputs):
     psnr_scores = []
     ssim_scores = []
     for i in range(n):
-        print("inputs_np[i] shape:", images_np[i].shape) # debug
         x = images_np[i].transpose(1, 2, 0)
-        print("outputs_np[i] shape:", outputs_np[i].shape) # debug
         y = outputs_np[i].transpose(1, 2, 0)
         x = np.clip(x, 0, 1)
         y = np.clip(y, 0, 1)
