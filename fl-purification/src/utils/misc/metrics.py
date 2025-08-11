@@ -121,28 +121,34 @@ def filter_adversarial_images_by_jsd(detector_model, adversarial_loader, jsd_thr
 
 def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
     import torch
+    from torch.utils.data import DataLoader, TensorDataset
+
     reformer_model.to(device)
     reformer_model.eval()
+    
     reconstructed_images = []
+    all_labels = []
+    
     with torch.no_grad():
-        for images, _ in filtered_loader:
+        for images, labels in filtered_loader:
             images = images.to(device)
             # Pass images through the Reformer model
             outputs = reformer_model(images)
             # Collect reconstructed outputs on CPU
             reconstructed_images.append(outputs.cpu())
-
-    # Concatenate all reconstructed image tensors
+            # Collect labels as well
+            all_labels.append(labels)
+    
+    # Concatenate all reconstructed images and labels
     reconstructed_tensor = torch.cat(reconstructed_images, dim=0)
-
-    # Create a new DataLoader from the reconstructed images tensor
-    from torch.utils.data import DataLoader, TensorDataset
-    dataset = TensorDataset(reconstructed_tensor)
+    labels_tensor = torch.cat(all_labels, dim=0)
+    
+    # Create a new DataLoader from the reconstructed images tensor and labels
+    dataset = TensorDataset(reconstructed_tensor, labels_tensor)
     reconstructed_loader = DataLoader(dataset, batch_size=filtered_loader.batch_size, shuffle=False)
-
+    
     return reconstructed_loader
 
-from sklearn.metrics import f1_score
 
 def classify_images(classifier_model, perturbed_loader, device='cpu'):
     """
