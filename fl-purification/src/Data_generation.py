@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torchattacks import CW
 import shutil
 from utils.misc.Attacks import fgsm_attack,pgd_attack,carlini_attack
+from models.Classifier.Resnet import BasicBlock , ResNet18_MedMNIST
 
 def get_dataloaders(data_flag, batch_size=64, download=True):
     info = INFO[data_flag]
@@ -110,25 +111,26 @@ def zip_directory(dir_path, zip_output_path):
     print(f"Files zipped successfully to {zip_output_path}")
     return zip_output_path
 
+
 def load_classifier(dataset, device='cpu'):
     """
-    Load the pretrained classifier model based on dataset name.
-
-    Args:
-        dataset (str): The dataset name, e.g., 'bloodmnist'
-        device (str): Device to load the model on (cpu or cuda)
-
-    Returns:
-        torch.nn.Module: Loaded classifier model
+    Load the pretrained classifier model weights based on dataset name.
     """
     model_path = f'/kaggle/input/classifiers/Pretrained_classifiers/{dataset}.pth'
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Classifier model for dataset '{dataset}' not found at {model_path}")
 
-    model = torch.load(model_path, map_location=device)
+    # Initialize your model architecture (adjust according to your model)
+    model = ResNet18_MedMNIST()
+    
+    # Load the state dictionary
+    state_dict = torch.load(model_path, map_location=device)
+    model.load_state_dict(state_dict)
+    
     model.to(device)
     model.eval()
     return model
+
 # example usage 
 # train_loader, val_loader, test_loader = get_dataloaders('bloodmnist')
 # perturbed_loader = generate_adversarial_dataset(model, test_loader, 'cw', DEVICE, c=1e-1, kappa=5, steps=1000, lr=0.005)
