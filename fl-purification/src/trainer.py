@@ -305,3 +305,73 @@ def train_reformer_hipyrnet(model, train_loader, val_loader=None, epochs=20, lr=
             print(f"Epoch {epoch}/{epochs} Summary: Train Loss: {train_loss:.6f}")
 
     return model
+
+
+def train_reformer_lptn(model, train_loader, val_loader=None, epochs=20, lr=1e-3,use_wandb = False,
+                             device='cuda' if torch.cuda.is_available() else 'cpu'):
+    model = model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    criterion = nn.MSELoss()
+
+    for epoch in range(1, epochs + 1):
+        model.train()
+        train_loss = 0.0
+
+        progress_bar = tqdm(train_loader, desc=f"Epoch {epoch}/{epochs} [Training]")
+        for noisy_images, _ in progress_bar:
+            noisy_images = noisy_images.to(device)
+
+            optimizer.zero_grad()
+            # outputs, _ = model(noisy_images)  # model returns (denoised, kernel)
+            outputs = model(noisy_images)[-1]  # model returns (denoised)
+            loss = criterion(outputs, noisy_images)
+            loss.backward()
+            optimizer.step()
+
+            train_loss += loss.item() * noisy_images.size(0)
+            progress_bar.set_postfix(loss=loss.item())
+
+        train_loss /= len(train_loader.dataset)
+
+
+        if val_loader is not None:
+            model.eval()
+            val_loss = 0.0
+            psnr_scores = []
+            ssim_scores = []
+
+            val_bar = tqdm(val_loader, desc=f"Epoch {epoch}/{epochs} [Validation]")
+            with torch.no_grad():
+                for noisy_images, _ in val_bar:
+                    noisy_images = noisy_images.to(device)
+                    outputs = model(noisy_images)[-1]
+                    loss = criterion(outputs, noisy_images)
+                    val_loss += loss.item() * noisy_images.size(0)
+
+                    batch_psnr, batch_ssim = compute_psnr_ssim(noisy_images, outputs)
+                    psnr_scores.append(batch_psnr)
+                    ssim_scores.append(batch_ssim)
+
+                    val_bar.set_postfix(psnr=batch_psnr, ssim=batch_ssim)
+
+            val_loss /= len(val_loader.dataset)
+            avg_psnr = np.mean(psnr_scores)
+            avg_ssim = np.mean(ssim_scores)
+            # wandb logging after validation
+            if use_wandb:
+                wandb.log({
+                    "epoch": epoch,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "val_psnr": avg_psnr,
+                    "val_ssim": avg_ssim
+                })
+
+            print(f"Epoch {epoch}/{epochs} Summary: "
+                  f"Train Loss: {train_loss:.6f} | "
+                  f"Val Loss: {val_loss:.6f} | "
+                  f"PSNR: {avg_psnr:.4f} | SSIM: {avg_ssim:.4f}")
+        else:
+            print(f"Epoch {epoch}/{epochs} Summary: Train Loss: {train_loss:.6f}")
+
+    return model

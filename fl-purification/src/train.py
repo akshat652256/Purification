@@ -12,6 +12,7 @@ from models.Reformer.DAE import DenoisingAutoEncoder
 from models.Reformer.Hypernet import AdaptiveLaplacianPyramidUNet
 from models.Reformer.SMP import SMPPyramidDenoiser
 from models.Reformer.laplacian import SimplePyramidDenoiser
+from models.Reformer.LPTN import LPTNPaper
 from Data_generation import get_dataloaders
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
@@ -112,6 +113,9 @@ def main():
     elif args.model == 'reformer' and args.reformer_type == "laplacian":
         print("Using Adaptive Laplacian Pyramid UNet")
         model = SimplePyramidDenoiser()
+        train_func = train_reformer_hipyrnet
+    elif args.model == 'reformer' and args.reformer_type == "lptn":
+        model = LPTNPaper(gan_type='standard', use_hypernet=True, nrb_high=5, nrb_low=3)
         train_func = train_reformer_hipyrnet
 
     # Train the model

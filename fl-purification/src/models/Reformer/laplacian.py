@@ -72,7 +72,7 @@ class SimpleDecoder(nn.Module):
 class SimplePyramidDenoiser(nn.Module):
     def __init__(self, num_pyramid_levels=5, kernel_size=5, input_channels=3):
         super().__init__()
-        self.v_noise = 0.0
+        self.v_noise = 0.1
 
         self.encoder = SimpleEncoder(in_channels=input_channels)
         # Output channels match encoder last channels
