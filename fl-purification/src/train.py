@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import medmnist
 from medmnist import INFO
-from trainer import train_classifier, train_detector, train_reformer, train_reformer_hipyrnet
+from trainer import train_classifier, train_detector, train_reformer, train_reformer_hipyrnet, train_reformer_lptn
 from models.Classifier.Resnet import BasicBlock , ResNet18_MedMNIST
 from models.Detector.AE import SimpleAutoencoder
 from models.Reformer.DAE import DenoisingAutoEncoder
@@ -116,7 +116,7 @@ def main():
         train_func = train_reformer_hipyrnet
     elif args.model == 'reformer' and args.reformer_type == "lptn":
         model = LPTNPaper( nrb_high=5, nrb_low=3)
-        train_func = train_reformer_hipyrnet
+        train_func = train_reformer_lptn
 
     # Train the model
     trained_model = train_func(model, train_loader, val_loader, epochs=args.epochs, lr=args.lr, use_wandb=args.use_wandb)
