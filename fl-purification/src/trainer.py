@@ -347,7 +347,9 @@ def train_reformer_lptn(model, train_loader, val_loader=None, epochs=20, lr=1e-3
                     outputs = model(noisy_images)[-1]
                     loss = criterion(outputs, noisy_images)
                     val_loss += loss.item() * noisy_images.size(0)
-
+                    
+                    print(f"out shape: {outputs.shape}"
+                          f"input shape: {noisy_images.shape}")
                     batch_psnr, batch_ssim = compute_psnr_ssim(noisy_images, outputs)
                     psnr_scores.append(batch_psnr)
                     ssim_scores.append(batch_ssim)
