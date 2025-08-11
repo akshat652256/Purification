@@ -83,7 +83,7 @@ def save_perturbed_dataset(perturbed_loader, base_dir, dataset_name, attack_type
     Save images and labels from the perturbed loader to the specified directory structure.
     """
     attack_folder = attack_type if not strength else f"{attack_type} {strength}"
-    dir_path = os.path.join(base_dir, dataset_name, attack_folder)
+    dir_path = os.path.join("/kaggle/working",base_dir, dataset_name, attack_folder)
     os.makedirs(dir_path, exist_ok=True)
 
     for batch_idx, (images, labels) in enumerate(perturbed_loader):
@@ -110,7 +110,7 @@ def zip_directory(dir_path, zip_output_path):
     print(f"Files zipped successfully to {zip_output_path}")
     return zip_output_path
 
-#example usage 
+# example usage 
 # train_loader, val_loader, test_loader = get_dataloaders('bloodmnist')
 # perturbed_loader = generate_adversarial_dataset(model, test_loader, 'cw', DEVICE, c=1e-1, kappa=5, steps=1000, lr=0.005)
 # save_perturbed_dataset(perturbed_loader, base_dir='medmnist', dataset_name='bloodmnist', attack_type='cw', strength='strong')
