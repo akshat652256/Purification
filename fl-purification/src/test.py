@@ -51,31 +51,28 @@ def main():
     adversarial_loader = get_adversarial_dataloader(adversarial_dataset)
 
     # Filter adversarial images based on JSD threshold
-    filtered_loader = filter_adversarial_images_by_jsd(detector_model, adversarial_dataset, jsd_threshold, device=device)
+    filtered_loader = filter_adversarial_images_by_jsd(detector_model, adversarial_loader, jsd_threshold, device=device)
     if filtered_loader is not None:
         print(f"Number of images passing through detector: {len(filtered_loader.dataset)}")
 
     # 1) None pipeline
     print(f"None pipeline")
-    images = identity_pass(adversarial_loader)
-    classify_images(classifier_model, images, device = device)
+    classify_images(classifier_model, adversarial_loader, device = device)
 
     # 2) Detector only pipeline
     if filtered_loader is not None:
-        print(f"Detector only pipeline")
-        images = identity_pass(filtered_loader)
-        classify_images(classifier_model, images, device = device)
+        classify_images(classifier_model, filtered_loader, device = device)
 
     # 3) Reformer only pipeline
     print(f"Reformer only pipeline")
-    reconstructions = reconstruct_with_reformer(reformer_model, adversarial_loader, device=device)
-    classify_images(classifier_model,reconstructions,device=device)
+    reconstructed_loader = reconstruct_with_reformer(reformer_model, adversarial_loader, device=device)
+    classify_images(classifier_model,reconstructed_loader,device=device)
 
     # 4) Full pipeline
     if filtered_loader is not None:
         print(f"Full pipeline")
-        reconstructions = reconstruct_with_reformer(reformer_model, filtered_loader, device=device)
-        classify_images(classifier_model, reconstructions, device=device)
+        reconstructed_loader = reconstruct_with_reformer(reformer_model, filtered_loader, device=device)
+        classify_images(classifier_model, reconstructed_loader, device=device)
 
 
 if __name__ == "__main__":
