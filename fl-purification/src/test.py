@@ -2,7 +2,7 @@ import argparse
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 from train import load_model_from_path
-from Data_generation import get_dataloaders
+from Data_generation import get_dataloaders,load_classifier
 from utils.misc.metrics import *
 from dataloader import AdversarialDataset
 from sklearn.metrics import f1_score  
@@ -29,7 +29,7 @@ def main():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Load models
-    classifier_model = load_model_from_path('classifier', device)
+    classifier_model = load_classifier(args.dataset, device=device)
     detector_model = load_model_from_path('detector', device)
     reformer_model = load_model_from_path('reformer', reformer_type=args.reformer_type, device=device)
 
@@ -60,6 +60,7 @@ def main():
     classify_images(classifier_model, adversarial_loader, device = device)
 
     # 2) Detector only pipeline
+    print(f"Detector pipeline")
     if filtered_loader is not None:
         classify_images(classifier_model, filtered_loader, device = device)
 
