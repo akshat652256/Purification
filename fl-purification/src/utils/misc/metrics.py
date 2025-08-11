@@ -93,7 +93,7 @@ def filter_adversarial_images_by_jsd(detector_model, adversarial_loader, jsd_thr
             # Calculate JSD for each image in the batch
             # Assuming images and reconstructions are normalized tensors with same shape
             batch_jsd = jsd(images, reconstructions)  # Expected shape [batch_size]
-            
+            batch_jsd = batch_jsd.view(batch_jsd.size(0), -1).mean(dim=1)  # [batch_size]
             # Filter images based on JSD threshold
             mask = batch_jsd <= jsd_threshold
             
