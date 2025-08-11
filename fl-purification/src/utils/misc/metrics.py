@@ -87,6 +87,7 @@ def filter_adversarial_images_by_jsd(detector_model, adversarial_loader, jsd_thr
     with torch.no_grad():
         for images, labels in adversarial_loader:
             images = images.to(device)
+            labels = labels.to(device)
             # Get reconstructions from the detector model
             reconstructions = detector_model(images)
             
