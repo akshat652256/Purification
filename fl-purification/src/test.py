@@ -51,7 +51,8 @@ def main():
     adversarial_loader = get_adversarial_dataloader(adversarial_dataset)
 
     # Filter adversarial images based on JSD threshold
-    filtered_loader = filter_adversarial_images_by_jsd(detector_model,classifier_model, adversarial_loader, jsd_threshold, device=device)
+    """filtered_loader = filter_adversarial_images_by_jsd(detector_model,classifier_model, adversarial_loader, jsd_threshold, device=device)"""
+    filtered_loader = get_one_tenth_loader(adversarial_loader)
     if filtered_loader is not None:
         print(f"Number of images passing through detector: {len(filtered_loader.dataset)}")
 
@@ -71,7 +72,7 @@ def main():
             print(f"Classifying {len(filtered_loader.dataset)} filtered images")
             print(f"Classifying {len(reconstructed_loader.dataset)} reconstructed images")
             classify_images(classifier_model, reconstructed_loader, device=device)
-            
+
     # 3) Reformer only pipeline
     print(f"Reformer only pipeline")
     reconstructed_loader = reconstruct_with_reformer(reformer_model, adversarial_loader, device=device)

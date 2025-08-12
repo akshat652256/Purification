@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, Subset
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from sklearn.metrics import f1_score
@@ -214,3 +214,23 @@ def classify_images(classifier_model, perturbed_loader, device='cpu'):
     print(f"F1 score of images classification: {f1:.4f}")
     return f1
     
+
+def get_one_tenth_loader(adversarial_loader):
+    """
+    Returns a DataLoader with roughly 1/10th of the data from adversarial_loader.
+    """
+    dataset = adversarial_loader.dataset
+    total_size = len(dataset)
+    target_size = max(1, total_size // 10)  # At least 1 sample
+
+    # Just take the first `target_size` samples
+    indices = list(range(target_size))
+
+    subset = Subset(dataset, indices)
+    reduced_loader = DataLoader(
+        subset,
+        batch_size=adversarial_loader.batch_size,
+        shuffle=False  # keep order consistent
+    )
+
+    return reduced_loader
