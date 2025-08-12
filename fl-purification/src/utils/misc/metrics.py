@@ -101,7 +101,7 @@ def compute_jsd_threshold(detector_model, classifier_model, dataloader, device='
     return avg_jsd
 
 
-def filter_adversarial_images_by_jsd(detector_model,classifier_model,adversarial_loader,jsd_threshold,device='cpu',temperature=2.0):
+def filter_adversarial_images_by_jsd(detector_model, classifier_model, adversarial_loader, jsd_threshold, device='cpu', temperature=2.0):
     detector_model.eval()
     classifier_model.eval()
     detector_model.to(device)
@@ -130,10 +130,13 @@ def filter_adversarial_images_by_jsd(detector_model,classifier_model,adversarial
             # Create mask for samples passing the threshold
             mask = batch_jsd <= jsd_threshold
 
-            # Append filtered images and labels (on CPU)
             if mask.any():
-                kept_images.append(images[mask].cpu())
-                kept_labels.append(labels[mask].cpu())
+                # Apply mask to both images and labels to keep them aligned
+                filtered_images = images[mask].cpu()
+                filtered_labels = labels[mask].cpu()
+
+                kept_images.append(filtered_images)
+                kept_labels.append(filtered_labels)
 
     if len(kept_images) == 0:
         # No images passed the filter, return empty loader
@@ -148,6 +151,7 @@ def filter_adversarial_images_by_jsd(detector_model,classifier_model,adversarial
     filtered_loader = DataLoader(filtered_dataset, batch_size=adversarial_loader.batch_size, shuffle=False)
 
     return filtered_loader
+
 
 
 def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
