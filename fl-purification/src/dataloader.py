@@ -64,3 +64,4 @@ class AdversarialDataset(Dataset):
         labels = batch_data['labels']
 
         return images, labels
+

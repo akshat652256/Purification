@@ -37,7 +37,7 @@ def main():
     train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
 
     # Compute JSD threshold on clean validation data using detector reconstructions
-    jsd_threshold = compute_jsd_threshold(detector_model, val_loader, device=device)
+    jsd_threshold = compute_jsd_threshold(detector_model,classifier_model, val_loader, device=device)
     print(f"Computed JSD threshold: {jsd_threshold}")
 
     # Create adversarial dataset instance with parameters from parser args
@@ -51,7 +51,7 @@ def main():
     adversarial_loader = get_adversarial_dataloader(adversarial_dataset)
 
     # Filter adversarial images based on JSD threshold
-    filtered_loader = filter_adversarial_images_by_jsd(detector_model, adversarial_loader, jsd_threshold, device=device)
+    filtered_loader = filter_adversarial_images_by_jsd(detector_model,classifier_model, adversarial_loader, jsd_threshold, device=device)
     if filtered_loader is not None:
         print(f"Number of images passing through detector: {len(filtered_loader.dataset)}")
 
@@ -60,9 +60,9 @@ def main():
     classify_images(classifier_model, adversarial_loader, device = device)
 
     # 2) Detector only pipeline
-    print(f"Detector pipeline")
-    if filtered_loader is not None:
-        classify_images(classifier_model, filtered_loader, device = device)
+    if filtered_loader is not None and len(filtered_loader.dataset) > 0:
+        print("Detector pipeline")
+        classify_images(classifier_model, filtered_loader, device=device)
 
     # 3) Reformer only pipeline
     print(f"Reformer only pipeline")
@@ -70,7 +70,7 @@ def main():
     classify_images(classifier_model,reconstructed_loader,device=device)
 
     # 4) Full pipeline
-    if filtered_loader is not None:
+    if filtered_loader is not None and len(filtered_loader.dataset) > 0:
         print(f"Full pipeline")
         reconstructed_loader = reconstruct_with_reformer(reformer_model, filtered_loader, device=device)
         classify_images(classifier_model, reconstructed_loader, device=device)
