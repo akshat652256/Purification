@@ -3,7 +3,7 @@ import torch.nn as nn
 import torchvision.transforms.functional as Fnn
 
 class DenoisingAutoEncoder(nn.Module):
-    def __init__(self, v_noise=0.1, reg_strength=0.0):
+    def __init__(self, v_noise=0.5, reg_strength=0.0):
         super().__init__()
         self.v_noise = v_noise
         self.reg_strength = reg_strength
