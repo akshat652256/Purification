@@ -115,6 +115,7 @@ def main():
         model = SimplePyramidDenoiser()
         train_func = train_reformer_hipyrnet
     elif args.model == 'reformer' and args.reformer_type == "lptn":
+        print("Using LPTN")
         model = LPTNPaper( nrb_high=5, nrb_low=3)
         train_func = train_reformer_lptn
 
