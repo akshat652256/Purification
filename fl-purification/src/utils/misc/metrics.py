@@ -151,9 +151,6 @@ def filter_adversarial_images_by_jsd(detector_model,classifier_model,adversarial
 
 
 def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
-    import torch
-    from torch.utils.data import DataLoader, TensorDataset
-
     reformer_model.to(device)
     reformer_model.eval()
     
@@ -168,7 +165,7 @@ def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
             # Collect reconstructed outputs on CPU
             reconstructed_images.append(outputs.cpu())
             # Collect labels as well
-            all_labels.append(labels)
+            all_labels.append(labels.cpu())
     
     # Concatenate all reconstructed images and labels
     reconstructed_tensor = torch.cat(reconstructed_images, dim=0)
