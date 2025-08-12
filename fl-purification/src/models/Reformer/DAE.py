@@ -38,13 +38,30 @@ class DenoisingAutoEncoder(nn.Module):
             nn.Sigmoid()
         )
         
+    # def forward(self, x):
+    #     z = self.encoder(x)
+    #     # Add noise to bottleneck if enabled
+    #     if self.v_noise > 0.0:
+    #         noise = self.v_noise * torch.randn_like(z)
+    #         z = z + noise
+    #     out = self.decoder(z)
+    #     # Crop to (28,28) if shape != (3,28,28)
+    #     out = Fnn.center_crop(out, [28, 28])
+    #     return out
+
+    # def get_l2_loss(self):
+    #     l2_loss = sum(torch.sum(param ** 2) for param in self.parameters())
+    #     return self.reg_strength * l2_loss
+
     def forward(self, x):
-        z = self.encoder(x)
-        # Add noise to bottleneck if enabled
+        # Add noise directly to the input if enabled
         if self.v_noise > 0.0:
-            noise = self.v_noise * torch.randn_like(z)
-            z = z + noise
+            noise = self.v_noise * torch.randn_like(x)
+            x = x + noise
+
+        z = self.encoder(x)
         out = self.decoder(z)
+
         # Crop to (28,28) if shape != (3,28,28)
         out = Fnn.center_crop(out, [28, 28])
         return out
