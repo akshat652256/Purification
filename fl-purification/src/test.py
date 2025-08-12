@@ -30,7 +30,7 @@ def main():
 
     # Load models
     classifier_model = load_classifier(args.dataset, device=device)
-    detector_model = load_model_from_path('detector', device)
+    detector_model = load_model_from_path('reformer', device)
     reformer_model = load_model_from_path('reformer', reformer_type=args.reformer_type, device=device)
 
     # Load clean dataloaders
