@@ -323,6 +323,8 @@ def train_reformer_lptn(model, train_loader, val_loader=None, epochs=20, lr=1e-3
 
             optimizer.zero_grad()
             # outputs, _ = model(noisy_images)  # model returns (denoised, kernel)
+            noise = 0.1* torch.randn_like(noisy_images)
+            noisy_images = noisy_images + noise
             outputs = model(noisy_images)# single output # model returns (denoised)
             loss = criterion(outputs, noisy_images)
             loss.backward()
@@ -344,7 +346,9 @@ def train_reformer_lptn(model, train_loader, val_loader=None, epochs=20, lr=1e-3
             with torch.no_grad():
                 for noisy_images, _ in val_bar:
                     noisy_images = noisy_images.to(device)
-                    outputs = model(noisy_images) # single output
+                    noise = 0.1* torch.randn_like(noisy_images)
+                    noisy_images = noisy_images + noise
+                    outputs = model(noisy_images)
                     loss = criterion(outputs, noisy_images)
                     val_loss += loss.item() * noisy_images.size(0)
                     
