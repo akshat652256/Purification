@@ -143,24 +143,38 @@ class Trans_high(nn.Module):
         return pyr_result
 
 class LPTNPaper(nn.Module):
-    def __init__(self, nrb_low=5, nrb_high=3, num_high=3, device = torch.device('cuda')):
+    def __init__(self, nrb_low=5, nrb_high=3, num_high=3, v_noise=0.5, device=torch.device('cuda')):
         super(LPTNPaper, self).__init__()
 
         self.device = device
+        self.v_noise = v_noise  # noise magnitude
         self.lap_pyramid = Lap_Pyramid_Conv(num_high, self.device)
-        trans_low = Trans_low(nrb_low)
-        trans_high = Trans_high(nrb_high, num_high=num_high)
-        self.trans_low = trans_low.to(self.device)
-        self.trans_high = trans_high.to(self.device)
+
+        self.trans_low = Trans_low(nrb_low).to(self.device)
+        self.trans_high = Trans_high(nrb_high, num_high=num_high).to(self.device)
 
     def forward(self, real_A_full):
+        # --- Add noise directly to input image ---
+        if self.v_noise > 0.0:
+            noise = self.v_noise * torch.randn_like(real_A_full)
+            real_A_full = real_A_full + noise
+        # -----------------------------------------
 
+        # Decompose into Laplacian pyramid
         pyr_A = self.lap_pyramid.pyramid_decom(img=real_A_full)
+
+        # Low-frequency transformation
         fake_B_low = self.trans_low(pyr_A[-1])
+
+        # Prepare inputs for high-frequency transformation
         real_A_up = nn.functional.interpolate(pyr_A[-1], size=(pyr_A[-2].shape[2], pyr_A[-2].shape[3]))
         fake_B_up = nn.functional.interpolate(fake_B_low, size=(pyr_A[-2].shape[2], pyr_A[-2].shape[3]))
         high_with_low = torch.cat([pyr_A[-2], real_A_up, fake_B_up], 1)
+
+        # Transform high-frequency bands
         pyr_A_trans = self.trans_high(high_with_low, pyr_A, fake_B_low)
+
+        # Reconstruct full-resolution image
         fake_B_full = self.lap_pyramid.pyramid_recons(pyr_A_trans)
 
         return fake_B_full
