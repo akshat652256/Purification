@@ -64,18 +64,20 @@ def main():
         print("Detector pipeline")
         classify_images(classifier_model, filtered_loader, device=device)
 
+    # 4) Full pipeline
+        if filtered_loader is not None and len(filtered_loader.dataset) > 0:
+            print(f"Full pipeline")
+            reconstructed_loader = reconstruct_with_reformer(reformer_model, filtered_loader, device=device)
+            print(f"Classifying {len(filtered_loader.dataset)} filtered images")
+            print(f"Classifying {len(reconstructed_loader.dataset)} reconstructed images")
+            classify_images(classifier_model, reconstructed_loader, device=device)
+            
     # 3) Reformer only pipeline
     print(f"Reformer only pipeline")
     reconstructed_loader = reconstruct_with_reformer(reformer_model, adversarial_loader, device=device)
     classify_images(classifier_model,reconstructed_loader,device=device)
 
-    # 4) Full pipeline
-    if filtered_loader is not None and len(filtered_loader.dataset) > 0:
-        print(f"Full pipeline")
-        reconstructed_loader = reconstruct_with_reformer(reformer_model, filtered_loader, device=device)
-        print(f"Classifying {len(filtered_loader.dataset)} filtered images")
-        print(f"Classifying {len(reconstructed_loader.dataset)} reconstructed images")
-        classify_images(classifier_model, reconstructed_loader, device=device)
+    
 
 
 if __name__ == "__main__":
