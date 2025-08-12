@@ -30,14 +30,14 @@ def main():
 
     # Load models
     classifier_model = load_classifier(args.dataset, device=device)
-    detector_model = load_model_from_path('reformer', reformer_type=args.reformer_type, device=device)
+    detector_model = load_model_from_path('detector', device=device)
     reformer_model = load_model_from_path('reformer', reformer_type=args.reformer_type, device=device)
 
     # Load clean dataloaders
     train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
 
     # Compute JSD threshold on clean validation data using detector reconstructions
-    jsd_threshold = compute_jsd_threshold(detector_model,classifier_model, val_loader, device=device)
+    jsd_threshold = compute_jsd_threshold(detector_model,reformer_model,classifier_model, val_loader, device=device)
     print(f"Computed JSD threshold: {jsd_threshold}")
 
     # Create adversarial dataset instance with parameters from parser args
