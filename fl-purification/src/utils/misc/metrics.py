@@ -173,7 +173,10 @@ def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
     # Concatenate all reconstructed images and labels
     reconstructed_tensor = torch.cat(reconstructed_images, dim=0)
     labels_tensor = torch.cat(all_labels, dim=0)
-    
+
+    print(f"Reconstructed images shape: {reconstructed_tensor.shape}")
+    print(f"Labels length: {labels_tensor.shape}")
+
     # Create a new DataLoader from the reconstructed images tensor and labels
     dataset = TensorDataset(reconstructed_tensor, labels_tensor)
     reconstructed_loader = DataLoader(dataset, batch_size=filtered_loader.batch_size, shuffle=False)
@@ -207,7 +210,9 @@ def classify_images(classifier_model, perturbed_loader, device='cpu'):
             
             all_labels.extend(labels.cpu().numpy())
             all_preds.extend(preds.cpu().numpy())
-            
+    if len(all_labels) == 0 or len(all_preds) == 0:
+        print("Warning: No samples to classify, returning F1=0")
+        return 0.0
     f1 = f1_score(all_labels, all_preds, average='macro')
     print(f"F1 score of images classification: {f1:.4f}")
     return f1
