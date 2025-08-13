@@ -142,15 +142,9 @@ def compute_jsd_threshold(detector_model, classifier_model, dataloader, device='
             total_jsd += batch_jsd.sum().item()
             total_samples += x.size(0)
 
-            # # Append each sample's JSD into its class list
-            # for lbl, val in zip(labels.cpu().tolist(), batch_jsd.cpu().tolist()):
-            #     jsd_per_class[lbl].append(val)
-
+            # Append each sample's JSD into its class list
             for lbl, val in zip(labels.cpu().tolist(), batch_jsd.cpu().tolist()):
-                if isinstance(lbl, list):  # in case label is [3]
-                    lbl = lbl[0]
-                jsd_per_class[int(lbl)].append(val)
-
+                jsd_per_class[lbl].append(val)
 
     avg_jsd = total_jsd / total_samples
 
