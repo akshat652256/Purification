@@ -134,64 +134,103 @@ def train_detector(model, train_loader, val_loader=None, epochs=20, lr=1e-3, use
 #             })
 
 #     return model
+
 import torch
-import torchvision.transforms as T
-import torchvision.transforms.functional as F
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+from torchvision import transforms
+import random
 
-# --- Custom Equalize for float tensors ---
-class FloatEqualize:
-    def __call__(self, img):
-        if img.dtype != torch.uint8:
-            img_uint8 = (img * 255).clamp(0, 255).to(torch.uint8)
-        else:
-            img_uint8 = img
-        img_eq = F.equalize(img_uint8)
-        return img_eq.float() / 255.0
+# Custom Gaussian noise transform (with optional probability)
+class AddGaussianNoise(object):
+    def __init__(self, mean=0.0, std=0.05, p=0.5):
+        self.mean = mean
+        self.std = std
+        self.p = p
+        
+    def __call__(self, tensor):
+        if random.random() < self.p:
+            return tensor + torch.randn_like(tensor) * self.std + self.mean
+        return tensor
+    
+    def __repr__(self):
+        return f"{self.__class__.__name__}(mean={self.mean}, std={self.std}, p={self.p})"
 
-# --- Noise augmentation similar to v_noise ---
-class AddGaussianNoise:
-    def __init__(self, noise_level=0.05):
-        self.noise_level = noise_level
+def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3, use_wandb=False,
+                   device='cuda' if torch.cuda.is_available() else 'cpu'):
 
-    def __call__(self, img):
-        noise = self.noise_level * torch.randn_like(img)
-        return (img + noise).clamp(0.0, 1.0)
-
-# --- Compose augmentation pipeline ---
-augment = T.Compose([
-    FloatEqualize(),  # histogram equalization
-    T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-    T.RandomHorizontalFlip(p=0.5),
-    AddGaussianNoise(noise_level=0.05),  # Gaussian noise like v_noise
-])
-
-# --- Inside your train_reformer ---
-def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3, use_wandb=False, device='cuda'):
     model = model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = torch.nn.MSELoss()
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    # Augmentations for robustness
+    augment = transforms.Compose([
+        transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
+        transforms.RandomAdjustSharpness(sharpness_factor=2, p=0.3),
+        transforms.RandomAutocontrast(p=0.3),
+        transforms.RandomEqualize(p=0.3),
+        transforms.GaussianBlur(kernel_size=(3, 3), sigma=(0.1, 2.0)),
+        AddGaussianNoise(std=0.05, p=0.5)  # mimic v_noise injection
+    ])
 
     for epoch in range(1, epochs + 1):
         model.train()
-        train_loss = 0.
+        train_loss = 0.0
 
-        for images, labels in train_loader:
-            # Apply augmentations on CPU
-            images = torch.stack([augment(img.cpu()) for img in images]).to(device)
+        for images, _ in train_loader:
+            # Apply augmentations before GPU transfer
+            images = torch.stack([augment(img.cpu()) for img in images])
+            images = images.to(device)
 
             optimizer.zero_grad()
             outputs = model(images)
-            loss = criterion(outputs, images)  # adjust criterion if needed
+            mse_loss = criterion(outputs, images)
+            reg_loss = model.get_l2_loss()
+            loss = mse_loss + reg_loss
             loss.backward()
             optimizer.step()
 
             train_loss += loss.item() * images.size(0)
 
-        epoch_loss = train_loss / len(train_loader.dataset)
-        print(f"Epoch {epoch}/{epochs} - Train Loss: {epoch_loss:.4f}")
+        train_loss /= len(train_loader.dataset)
+
+        if val_loader is not None:
+            model.eval()
+            val_loss = 0.0
+            psnr_all = []
+            ssim_all = []
+            with torch.no_grad():
+                for images, _ in val_loader:
+                    images = images.to(device)
+                    outputs = model(images)
+                    mse_loss = criterion(outputs, images)
+                    reg_loss = model.get_l2_loss()
+                    loss = mse_loss + reg_loss
+                    val_loss += loss.item() * images.size(0)
+
+                    batch_psnr, batch_ssim = compute_psnr_ssim(images, outputs)
+                    psnr_all.append(batch_psnr)
+                    ssim_all.append(batch_ssim)
+
+            val_loss /= len(val_loader.dataset)
+            avg_psnr = np.mean(psnr_all)
+            avg_ssim = np.mean(ssim_all)
+            print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, "
+                  f"Val PSNR: {avg_psnr:.4f}, Val SSIM: {avg_ssim:.4f}")
+        else:
+            print(f"Epoch {epoch}/{epochs}, Train Loss: {train_loss:.6f}")
+
+        if use_wandb:
+            wandb.log({
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "val_loss": val_loss if val_loader else None,
+                "val_psnr": avg_psnr if val_loader else None,
+                "val_ssim": avg_ssim if val_loader else None
+            })
 
     return model
-
 
 
 def train_classifier(model, train_loader, val_loader, epochs=20, lr=1e-3, use_wandb=False,
