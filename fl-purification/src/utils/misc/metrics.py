@@ -91,6 +91,7 @@ def compute_jsd_threshold(detector_model, classifier_model, dataloader, device='
         for batch in dataloader:
             # Unpack inputs (assuming dataloader returns (images, labels))
             x, _ = batch
+            print(x,_)
             x = x.to(device)
             # Original logits & probabilities
             logits_x = classifier_model(x)  # shape: (B, num_classes)
