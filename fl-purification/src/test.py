@@ -37,7 +37,7 @@ def main():
     train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
 
     # Compute JSD threshold on clean validation data using detector reconstructions
-    jsd_threshold = compute_jsd_threshold(detector_model,reformer_model,classifier_model, val_loader, device=device)
+    jsd_threshold = compute_jsd_threshold(detector_model,classifier_model, val_loader, device=device)
     print(f"Computed JSD threshold: {jsd_threshold}")
 
     # Create adversarial dataset instance with parameters from parser args
@@ -51,7 +51,7 @@ def main():
     adversarial_loader = get_adversarial_dataloader(adversarial_dataset)
 
     # Filter adversarial images based on JSD threshold
-    filtered_loader = filter_adversarial_images_by_jsd(detector_model,reformer_model, classifier_model, adversarial_loader, jsd_threshold, device=device)
+    filtered_loader = filter_adversarial_images_by_jsd(detector_model, classifier_model, adversarial_loader, jsd_threshold, device=device)
 
     if filtered_loader is not None:
         print(f"Number of images passing through detector: {len(filtered_loader.dataset)}")
