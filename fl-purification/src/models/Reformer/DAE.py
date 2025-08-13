@@ -55,9 +55,9 @@ class DenoisingAutoEncoder(nn.Module):
 
     def forward(self, x):
         # Add noise directly to the input if enabled
-        if self.v_noise > 0.0:
-            noise = self.v_noise * torch.randn_like(x) # color itter
-            x = x + noise
+        # if self.v_noise > 0.0:
+        #     noise = self.v_noise * torch.randn_like(x) # color itter
+        #     x = x + noise
             
         z = self.encoder(x)
         out = self.decoder(z)
