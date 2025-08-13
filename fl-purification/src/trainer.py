@@ -175,13 +175,14 @@ def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3, use
         model.train()
         train_loss = 0.
 
-        for images, labels in train_loader:
-            # Apply augmentations on CPU
-            images = torch.stack([augment(img.cpu()) for img in images]).to(device)
+        for images, _ in train_loader:
+            images = images.to(device)  # clean target images
+            # Create augmented inputs on CPU, then send to GPU
+            aug_images = torch.stack([augment(img.cpu()) for img in images]).to(device)
 
             optimizer.zero_grad()
-            outputs = model(images)
-            loss = criterion(outputs, images)  # adjust criterion if needed
+            outputs = model(aug_images)  # predict clean from augmented
+            loss = criterion(outputs, images)  # compare to clean target
             loss.backward()
             optimizer.step()
 
@@ -189,6 +190,7 @@ def train_reformer(model, train_loader, val_loader=None, epochs=20, lr=1e-3, use
 
         epoch_loss = train_loss / len(train_loader.dataset)
         print(f"Epoch {epoch}/{epochs} - Train Loss: {epoch_loss:.4f}")
+
 
     return model
 
