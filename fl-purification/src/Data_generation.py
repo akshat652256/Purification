@@ -1,14 +1,40 @@
 import os
 import torch
-from torch.utils.data import DataLoader, TensorDataset
-import torchvision.transforms as transforms
-import medmnist
-from medmnist import INFO
+from torch.utils.data import DataLoader, TensorDataset, random_split
+from torchvision import datasets, transforms
 import torch.nn.functional as F
 from torchattacks import CW
 import shutil
 from utils.misc.Attacks import fgsm_attack,pgd_attack,carlini_attack
-from models.Classifier.Resnet import BasicBlock , ResNet18_MedMNIST
+from models.Classifier.CNN import MNIST_CNN
+
+
+
+def get_dataloader_MNIST(batch_size=64, download=True):
+    # Transformations applied to data (converts to tensor and normalizes)
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
+    
+    # Download and load full MNIST training dataset
+    full_train_dataset = datasets.MNIST(root='./data', train=True, download=download, transform=transform)
+    
+    # Create validation split (e.g., 10% of training data for val)
+    val_size = int(0.1 * len(full_train_dataset))
+    train_size = len(full_train_dataset) - val_size
+    
+    train_dataset, val_dataset = random_split(full_train_dataset, [train_size, val_size])
+    
+    # Load test dataset
+    test_dataset = datasets.MNIST(root='./data', train=False, download=download, transform=transform)
+    
+    # DataLoaders
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+    return train_loader, val_loader, test_loader
 
 def get_dataloaders(data_flag, batch_size=64, download=True):
     info = INFO[data_flag]
@@ -112,16 +138,16 @@ def zip_directory(dir_path, zip_output_path):
     return zip_output_path
 
 
-def load_classifier(dataset, device='cpu'):
+def load_classifier(device='cpu'):
     """
     Load the pretrained classifier model weights based on dataset name.
     """
-    model_path = f'/kaggle/input/classifiers/Pretrained_classifiers/{dataset}.pth'
+    model_path = f'/kaggle/input/classifiers/Pretrained_classifiers/MNIST.pth'
     if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Classifier model for dataset '{dataset}' not found at {model_path}")
+        raise FileNotFoundError(f"Classifier model for dataset 'MNIST' not found at {model_path}")
 
     # Initialize your model architecture (adjust according to your model)
-    model = ResNet18_MedMNIST()
+    model = MNIST_CNN()
     
     # Load the state dictionary
     state_dict = torch.load(model_path, map_location=device)
