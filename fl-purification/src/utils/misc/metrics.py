@@ -70,94 +70,97 @@ def get_adversarial_dataloader(adversarial_dataset, batch_size=64, shuffle=False
     return loader
 
 
-def compute_jsd_threshold(detector_model, reformer_model, classifier_model, dataloader, device='cpu', temperature=2.0):
+def compute_jsd_threshold(detector_model, classifier_model, dataloader, device='cpu', temperature=2.0):
     detector_model.eval()
-    reformer_model.eval()
+    jsd_values = []
     classifier_model.eval()
-
-    detector_model.to(device)
-    reformer_model.to(device)
-    classifier_model.to(device)
+    with torch.no_grad():
+        for images, _ in dataloader:
+            images = images.to(device)
+            reconstructions = detector_model(images)
+            # Compute JSD for each image in the batch
+            batch_jsd = jsd(images, reconstructions)  # Assuming jsd function is defined elsewhere
+            jsd_values.append(batch_jsd.cpu())
 
     total_jsd = 0.0
     total_samples = 0
 
+    all_jsd_values = torch.cat(jsd_values)
+    avg_jsd = all_jsd_values.mean().item()
     with torch.no_grad():
         for batch in dataloader:
+            # Unpack inputs (assuming dataloader returns (images, labels))
             x, _ = batch
             x = x.to(device)
+            # Original logits & probabilities
+            logits_x = classifier_model(x)  # shape: (B, num_classes)
+            probs_x = softmax_with_temperature(logits_x, T=temperature)
 
-            # Get classifier logits and probabilities for detector reconstruction
-            x_det = detector_model(x)  # Detector reconstruction
-            logits_det = classifier_model(x_det)
-            probs_det = softmax_with_temperature(logits_det, T=temperature)
+            # Reconstructed input from autoencoder
+            x_recon = detector_model(x)
+            logits_recon = classifier_model(x_recon)
+            probs_recon = softmax_with_temperature(logits_recon, T=temperature)
 
-            # Get classifier logits and probabilities for reformer reconstruction
-            x_reform = reformer_model(x)  # Reformer reconstruction
-            logits_reform = classifier_model(x_reform)
-            probs_reform = softmax_with_temperature(logits_reform, T=temperature)
-
-            # Compute JSD between detector and reformer outputs for each sample
-            batch_jsd = jsd(probs_det, probs_reform)  # shape: (batch_size,)
-
+            # JSD for the batch (vector)
+            batch_jsd = jsd(probs_x, probs_recon)  # shape: (B,)
             total_jsd += batch_jsd.sum().item()
             total_samples += x.size(0)
-
     avg_jsd = total_jsd / total_samples
     return avg_jsd
 
-
-def filter_adversarial_images_by_jsd(detector_model, reformer_model, classifier_model, adversarial_loader, jsd_threshold, device='cpu', temperature=2.0):
+def filter_adversarial_images_by_jsd(detector_model,classifier_model,adversarial_loader,jsd_threshold,device='cpu',temperature=2.0):
     detector_model.eval()
-    reformer_model.eval()
     classifier_model.eval()
     detector_model.to(device)
-    reformer_model.to(device)
     classifier_model.to(device)
 
     kept_images = []
     kept_labels = []
-
     with torch.no_grad():
         for images, labels in adversarial_loader:
             images = images.to(device)
             labels = labels.to(device)
+            # Get reconstructions from the detector model
 
-            # Get reconstructions from detector and reformer
-            reconstructions_detector = detector_model(images)
-            reconstructions_reformer = reformer_model(images)
+            # Get classifier outputs for original images
+            logits_x = classifier_model(images)
+            probs_x = softmax_with_temperature(logits_x, T=temperature)
 
-            # Get classifier outputs for detector reconstructions
-            logits_det = classifier_model(reconstructions_detector)
-            probs_det = softmax_with_temperature(logits_det, T=temperature)
+            # Get reconstructions from detector (autoencoder)
+            reconstructions = detector_model(images)
+            # Calculate JSD for each image in the batch
+            # Assuming images and reconstructions are normalized tensors with same shape
+            batch_jsd = jsd(images, reconstructions)  # Expected shape [batch_size]
+            batch_jsd = batch_jsd.view(batch_jsd.size(0), -1).mean(dim=1)  # [batch_size]
+            # Filter images based on JSD threshold
+            logits_recon = classifier_model(reconstructions)
+            probs_recon = softmax_with_temperature(logits_recon, T=temperature)
 
-            # Get classifier outputs for reformer reconstructions
-            logits_reform = classifier_model(reconstructions_reformer)
-            probs_reform = softmax_with_temperature(logits_reform, T=temperature)
-
-            # Compute JSD for each sample between detector and reformer outputs
-            batch_jsd = jsd(probs_det, probs_reform)  # shape: (batch_size,)
+            # Compute JSD for each sample in batch
+            batch_jsd = jsd(probs_x, probs_recon)  # shape: (batch_size,)
 
             # Create mask for samples passing the threshold
             mask = batch_jsd <= jsd_threshold
 
+            # Append filtered images and labels (on CPU)
             if mask.any():
-                filtered_images = images[mask].cpu()
-                filtered_labels = labels[mask].cpu()
-
-                kept_images.append(filtered_images)
-                kept_labels.append(filtered_labels)
+                kept_images.append(images[mask].cpu())
+                kept_labels.append(labels[mask].cpu())
+    
 
     if len(kept_images) == 0:
+        # No images passed the filter, return empty loader
         empty_dataset = TensorDataset(torch.empty((0, *images.shape[1:])), torch.empty(0, dtype=torch.long))
         return DataLoader(empty_dataset, batch_size=adversarial_loader.batch_size, shuffle=False)
 
+    # Concatenate filtered images and labels
     filtered_images = torch.cat(kept_images, dim=0)
     filtered_labels = torch.cat(kept_labels, dim=0)
-
+    
+    # Create a new DataLoader from filtered data
     filtered_dataset = TensorDataset(filtered_images, filtered_labels)
     filtered_loader = DataLoader(filtered_dataset, batch_size=adversarial_loader.batch_size, shuffle=False)
-
+    
     return filtered_loader
 
 
