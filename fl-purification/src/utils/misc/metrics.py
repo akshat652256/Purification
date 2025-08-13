@@ -70,34 +70,69 @@ def get_adversarial_dataloader(adversarial_dataset, batch_size=64, shuffle=False
     return loader
 
 
+# def compute_jsd_threshold(detector_model, classifier_model, dataloader, device='cpu', temperature=2.0):
+#     detector_model.eval()
+#     jsd_values = []
+#     classifier_model.eval()
+#     with torch.no_grad():
+#         for images, _ in dataloader:
+#             images = images.to(device)
+#             reconstructions = detector_model(images)
+#             # Compute JSD for each image in the batch
+#             batch_jsd = jsd(images, reconstructions)  # Assuming jsd function is defined elsewhere
+#             jsd_values.append(batch_jsd.cpu())
+
+#     total_jsd = 0.0
+#     total_samples = 0
+
+#     all_jsd_values = torch.cat(jsd_values)
+#     avg_jsd = all_jsd_values.mean().item()
+#     with torch.no_grad():
+#         for batch in dataloader:
+#             # Unpack inputs (assuming dataloader returns (images, labels))
+#             x, _ = batch
+#             print(_)
+#             x = x.to(device)
+#             # Original logits & probabilities
+#             logits_x = classifier_model(x)  # shape: (B, num_classes)
+#             probs_x = softmax_with_temperature(logits_x, T=temperature)
+
+#             # Reconstructed input from autoencoder
+#             x_recon = detector_model(x)
+#             logits_recon = classifier_model(x_recon)
+#             probs_recon = softmax_with_temperature(logits_recon, T=temperature)
+
+#             # JSD for the batch (vector)
+#             batch_jsd = jsd(probs_x, probs_recon)  # shape: (B,)
+#             total_jsd += batch_jsd.sum().item()
+#             total_samples += x.size(0)
+#     avg_jsd = total_jsd / total_samples
+#     return avg_jsd
+
+
+from collections import defaultdict
+import torch
+
 def compute_jsd_threshold(detector_model, classifier_model, dataloader, device='cpu', temperature=2.0):
     detector_model.eval()
-    jsd_values = []
     classifier_model.eval()
-    with torch.no_grad():
-        for images, _ in dataloader:
-            images = images.to(device)
-            reconstructions = detector_model(images)
-            # Compute JSD for each image in the batch
-            batch_jsd = jsd(images, reconstructions)  # Assuming jsd function is defined elsewhere
-            jsd_values.append(batch_jsd.cpu())
+
+    # Store all JSD values per class
+    jsd_per_class = defaultdict(list)
 
     total_jsd = 0.0
     total_samples = 0
 
-    all_jsd_values = torch.cat(jsd_values)
-    avg_jsd = all_jsd_values.mean().item()
     with torch.no_grad():
-        for batch in dataloader:
-            # Unpack inputs (assuming dataloader returns (images, labels))
-            x, _ = batch
-            print(x,_)
+        for x, labels in dataloader:
             x = x.to(device)
+            labels = labels.to(device)
+
             # Original logits & probabilities
-            logits_x = classifier_model(x)  # shape: (B, num_classes)
+            logits_x = classifier_model(x)
             probs_x = softmax_with_temperature(logits_x, T=temperature)
 
-            # Reconstructed input from autoencoder
+            # Reconstructed input
             x_recon = detector_model(x)
             logits_recon = classifier_model(x_recon)
             probs_recon = softmax_with_temperature(logits_recon, T=temperature)
@@ -106,8 +141,23 @@ def compute_jsd_threshold(detector_model, classifier_model, dataloader, device='
             batch_jsd = jsd(probs_x, probs_recon)  # shape: (B,)
             total_jsd += batch_jsd.sum().item()
             total_samples += x.size(0)
+
+            # Append each sample's JSD into its class list
+            for lbl, val in zip(labels.cpu().tolist(), batch_jsd.cpu().tolist()):
+                jsd_per_class[lbl].append(val)
+
     avg_jsd = total_jsd / total_samples
+
+    # Compute average per class
+    avg_jsd_per_class = {cls: sum(vals)/len(vals) for cls, vals in jsd_per_class.items()}
+
+    print("Overall Avg JSD:", avg_jsd)
+    print("Per-Class Avg JSD:")
+    for cls, val in avg_jsd_per_class.items():
+        print(f"  Class {cls}: {val:.6f}")
+
     return avg_jsd
+
 
 def filter_adversarial_images_by_jsd(detector_model,classifier_model,adversarial_loader,jsd_threshold,device='cpu',temperature=2.0):
     detector_model.eval()
