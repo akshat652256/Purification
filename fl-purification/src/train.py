@@ -59,7 +59,7 @@ def load_model_from_path(model_type, detector_type, device='cuda' if torch.cuda.
 
 def main():
     parser = argparse.ArgumentParser(description="Train a model on MedMNIST dataset")
-    parser.add_argument('--detector-type', type=str, default="D1", help="set detector to use")
+    parser.add_argument('--detector_type', type=str, default="D1", help="set detector to use")
     parser.add_argument('--model', type=str, default='classifier', choices=['classifier', 'detector', 'reformer'],
                         help="Choose which model training function to use")
     args = parser.parse_args()
