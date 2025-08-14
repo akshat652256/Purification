@@ -18,8 +18,6 @@ def parse_args():
                         help='Attack type')
     parser.add_argument('--strength', type=str, default='strong', choices=['weak', 'strong', None],
                         help="Attack strength")
-    parser.add_argument('--detector_type', type=str, default='D1', choices=['D1','D2'],
-                        help="Type of detector to use")
     return parser.parse_args()
 
 
@@ -30,9 +28,9 @@ def main():
 
     # Load models
     classifier_model = load_classifier(device=device)
-    detector_1 = load_model_from_path('detector',detector_type = args.detector_type, device=device)
-    detector_2 = load_model_from_path('detector', reformer_type=args.detector_type, device=device)
-    reformer = load_model_from_path('reformer',None,device=device)
+    detector_1 = load_model_from_path('detector',"D1", device=device)
+    detector_2 = load_model_from_path('detector', "D2", device=device)
+    reformer = load_model_from_path('detector',"D1",device=device)
 
     # Load clean dataloaders
     train_loader, val_loader, test_loader = get_dataloader_MNIST()
