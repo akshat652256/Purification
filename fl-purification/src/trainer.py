@@ -6,7 +6,7 @@ from sklearn.metrics import roc_auc_score, f1_score
 from torch.nn import functional as F
 import numpy as np
 
-def train_autoencoder(model, train_loader, val_loader, epochs=100, lr=0.001, use_wandb=False,
+def train_autoencoder(model, train_loader, val_loader, epochs=50, lr=0.001, use_wandb=False,
                      device='cuda' if torch.cuda.is_available() else 'cpu'):
     model.to(device)
     criterion = nn.MSELoss()
@@ -48,6 +48,8 @@ def train_autoencoder(model, train_loader, val_loader, epochs=100, lr=0.001, use
         avg_ssim = sum(ssim_vals) / len(ssim_vals)
 
         print(f"Epoch {epoch+1}/{epochs} - Train Loss: {train_loss:.6f} - Val Loss: {val_loss:.6f} - Val PSNR: {avg_psnr:.3f} - Val SSIM: {avg_ssim:.3f}")
+    
+    return model
 
 
 def train_classifier(model, train_loader, val_loader, epochs=50, lr=0.01, use_wandb=False,
@@ -83,4 +85,6 @@ def train_classifier(model, train_loader, val_loader, epochs=50, lr=0.01, use_wa
 
         val_f1 = f1_score(all_labels, all_preds, average='macro')
         print(f"Epoch: {epoch+1}/{epochs}, Loss: {running_loss/len(train_loader):.4f}, Val F1: {val_f1:.4f}")
+    
+    return model
 
