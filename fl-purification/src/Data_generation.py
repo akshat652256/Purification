@@ -7,6 +7,7 @@ from torchattacks import CW
 import shutil
 from utils.misc.Attacks import fgsm_attack,pgd_attack,carlini_attack
 from models.Classifier.CNN import MNIST_CNN
+from models.Defensive_models.AE import DetectorIReformer,DetectorII
 
 
 
@@ -138,24 +139,45 @@ def zip_directory(dir_path, zip_output_path):
     return zip_output_path
 
 
-def load_classifier(device='cpu'):
-    """
-    Load the pretrained classifier model weights based on dataset name.
-    """
-    model_path = f'/kaggle/input/classifiers/Pretrained_classifiers/MNIST.pth'
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Classifier model for dataset 'MNIST' not found at {model_path}")
+import os
+import torch
 
-    # Initialize your model architecture (adjust according to your model)
-    model = MNIST_CNN()
+def load_model(model_name='mnist.pth', device='cpu'):
+    """
+    Load the specified pretrained classifier model from given path.
+
+    Parameters:
+    model_name : str
+        Name of the model file (e.g., 'mnist.pth', 'mnist_AE1.pth', 'mnist_AE2.pth').
+    device : str
+        'cpu' or 'cuda' depending on device usage.
+
+    Returns:
+    model : torch.nn.Module
+        Loaded and ready-to-evaluate model.
+    """
+
+    model_path = f'/kaggle/input/classifiers/Pretrained_classifiers/{model_name}'
     
-    # Load the state dictionary
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Classifier model '{model_name}' not found at {model_path}")
+
+    # Select architecture depending on the file
+    if "AE1" in model_name:
+        model = DetectorIReformer()  # Replace with your AE1 architecture
+    elif "AE2" in model_name:
+        model = DetectorII()  # Replace with your AE2 architecture
+    else:
+        model = MNIST_CNN()  # Standard MNIST model
+
+    # Load weights
     state_dict = torch.load(model_path, map_location=device)
     model.load_state_dict(state_dict)
     
     model.to(device)
     model.eval()
     return model
+
 
 # example usage 
 # train_loader, val_loader, test_loader = get_dataloaders('bloodmnist')

@@ -2,7 +2,7 @@ import argparse
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 from train import load_model_from_path
-from Data_generation import get_dataloader_MNIST,load_classifier
+from Data_generation import get_dataloader_MNIST,load_model
 from utils.misc.metrics import *
 from dataloader import AdversarialDataset
 from sklearn.metrics import f1_score  
@@ -27,10 +27,10 @@ def main():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Load models
-    classifier_model = load_classifier(device=device)
-    detector_1 = load_model_from_path('detector',"D1", device=device)
-    detector_2 = load_model_from_path('detector', "D2", device=device)
-    reformer = load_model_from_path('detector',"D1",device=device)
+    classifier_model = load_model(model_name='mnist.pth',device=device)
+    detector_1 = load_model(model_name='mnist_AE1.pth',device=device)
+    detector_2 = load_model(model_name='mnist_AE2.pth',device=device)
+    reformer = load_model(model_name='mnist_AE1.pth',device=device)
 
     # Load clean dataloaders
     train_loader, val_loader, test_loader = get_dataloader_MNIST()
