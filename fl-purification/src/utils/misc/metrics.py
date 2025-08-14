@@ -6,50 +6,80 @@ from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from sklearn.metrics import f1_score
 
-# images: input tensor (batch, 3, 28, 28)
-# outputs: reformed tensor from your model (batch, 3, 28, 28)
-# Assume both are in [0,1] range
 
-def compute_psnr_ssim(images, outputs):
-    images_np = images.cpu().numpy()
-    outputs_np = outputs.cpu().numpy()
-    n = images_np.shape[0]
-    psnr_scores = []
-    ssim_scores = []
-    for i in range(n):
-        x = images_np[i].transpose(1, 2, 0)
-        y = outputs_np[i].transpose(1, 2, 0)
-        x = np.clip(x, 0, 1)
-        y = np.clip(y, 0, 1)
-        # skimage wants shape (H, W, C) and float in [0,1]
-        psnr_val = psnr(x, y, data_range=1.0)
-        ssim_val = ssim(x, y, channel_axis=-1, data_range=1.0)
-        psnr_scores.append(psnr_val)
-        ssim_scores.append(ssim_val)
-    return np.mean(psnr_scores), np.mean(ssim_scores)
-    
+def compute_threshold(detector_1, detector_2, val_loader, device):
+    detector_1.to(device)
+    detector_2.to(device)
+    detector_1.eval()
+    detector_2.eval()
 
-def jsd(P, Q, eps=1e-12):
-    # Normalize to probabilities (L1 norm)
-    _P = P / torch.norm(P, p=1, dim=-1, keepdim=True)
-    _Q = Q / torch.norm(Q, p=1, dim=-1, keepdim=True)
+    l1_total = 0.0
+    l2_total = 0.0
+    count = 0
 
-    # Mean distribution
-    _M = 0.5 * (_P + _Q)
+    with torch.no_grad():
+        for images, _ in val_loader:
+            images = images.to(device)
+            outputs_1 = detector_1(images)
+            outputs_2 = detector_2(images)
 
-    # Clamp to avoid log(0)
-    _P = torch.clamp(_P, eps, 1.0)
-    _Q = torch.clamp(_Q, eps, 1.0)
-    _M = torch.clamp(_M, eps, 1.0)
+            # L1 norm (mean absolute error) per sample
+            l1_err = torch.mean(torch.abs(images - outputs_1), dim=[1, 2, 3])
+            # L2 norm (mean squared error) per sample
+            l2_err = torch.mean((images - outputs_2) ** 2, dim=[1, 2, 3])
 
-    # Compute JSD using KL Divergence
-    jsd = 0.5 * (torch.sum(_P * torch.log(_P / _M), dim=-1) +
-                 torch.sum(_Q * torch.log(_Q / _M), dim=-1))
-    return jsd
+            l1_total += l1_err.sum().item()
+            l2_total += l2_err.sum().item()
+            count += images.size(0)
+
+    avg_l1 = l1_total / count
+    avg_l2 = l2_total / count
+
+    # Return both average L1 and average L2 reconstruction errors
+    return avg_l1, avg_l2
 
 
-def softmax_with_temperature(logits, T):
-    return F.softmax(logits / T, dim=-1)
+def filter(detector_1, threshold_1, detector_2, threshold_2, adversarial_loader, device):
+    detector_1.to(device)
+    detector_2.to(device)
+    detector_1.eval()
+    detector_2.eval()
+
+    accepted_images = []
+    accepted_labels = []
+
+    with torch.no_grad():
+        for images, labels in adversarial_loader:
+            images = images.to(device)
+            outputs_1 = detector_1(images)
+            outputs_2 = detector_2(images)
+
+            # L1 reconstruction error per sample for detector_1
+            l1_err = torch.mean(torch.abs(images - outputs_1), dim=[1, 2, 3])
+            # L2 reconstruction error per sample for detector_2
+            l2_err = torch.mean((images - outputs_2) ** 2, dim=[1, 2, 3])
+
+            # Condition: errors below respective thresholds
+            mask = (l1_err < threshold_1) & (l2_err < threshold_2)
+
+            # Collect only accepted images and corresponding labels
+            if mask.any():
+                accepted_images.append(images[mask].cpu())
+                accepted_labels.append(labels[mask].cpu())
+
+    if len(accepted_images) == 0:
+        print("No images passed the filtering criteria.")
+        return None
+
+    # Concatenate all accepted images and labels
+    filtered_images = torch.cat(accepted_images)
+    filtered_labels = torch.cat(accepted_labels)
+
+    # Create a TensorDataset and DataLoader with the filtered subset
+    filtered_dataset = TensorDataset(filtered_images, filtered_labels)
+    filtered_loader = DataLoader(filtered_dataset, batch_size=adversarial_loader.batch_size, shuffle=False)
+
+    return filtered_loader
 
 
 def get_adversarial_dataloader(adversarial_dataset, batch_size=64, shuffle=False):
@@ -68,103 +98,6 @@ def get_adversarial_dataloader(adversarial_dataset, batch_size=64, shuffle=False
     # Return DataLoader with desired batch size
     loader = DataLoader(flat_dataset, batch_size=batch_size, shuffle=shuffle)
     return loader
-
-
-def compute_jsd_threshold(detector_model, classifier_model, dataloader, device='cpu', temperature=2.0):
-    detector_model.eval()
-    jsd_values = []
-    classifier_model.eval()
-    with torch.no_grad():
-        for images, _ in dataloader:
-            images = images.to(device)
-            reconstructions = detector_model(images)
-            # Compute JSD for each image in the batch
-            batch_jsd = jsd(images, reconstructions)  # Assuming jsd function is defined elsewhere
-            jsd_values.append(batch_jsd.cpu())
-
-    total_jsd = 0.0
-    total_samples = 0
-
-    all_jsd_values = torch.cat(jsd_values)
-    avg_jsd = all_jsd_values.mean().item()
-    with torch.no_grad():
-        for batch in dataloader:
-            # Unpack inputs (assuming dataloader returns (images, labels))
-            x, _ = batch
-            x = x.to(device)
-            # Original logits & probabilities
-            logits_x = classifier_model(x)  # shape: (B, num_classes)
-            probs_x = softmax_with_temperature(logits_x, T=temperature)
-
-            # Reconstructed input from autoencoder
-            x_recon = detector_model(x)
-            logits_recon = classifier_model(x_recon)
-            probs_recon = softmax_with_temperature(logits_recon, T=temperature)
-
-            # JSD for the batch (vector)
-            batch_jsd = jsd(probs_x, probs_recon)  # shape: (B,)
-            total_jsd += batch_jsd.sum().item()
-            total_samples += x.size(0)
-    avg_jsd = total_jsd / total_samples
-    return avg_jsd
-
-def filter_adversarial_images_by_jsd(detector_model,classifier_model,adversarial_loader,jsd_threshold,device='cpu',temperature=2.0):
-    detector_model.eval()
-    classifier_model.eval()
-    detector_model.to(device)
-    classifier_model.to(device)
-
-    kept_images = []
-    kept_labels = []
-    with torch.no_grad():
-        for images, labels in adversarial_loader:
-            images = images.to(device)
-            labels = labels.to(device)
-            # Get reconstructions from the detector model
-
-            # Get classifier outputs for original images
-            logits_x = classifier_model(images)
-            probs_x = softmax_with_temperature(logits_x, T=temperature)
-
-            # Get reconstructions from detector (autoencoder)
-            reconstructions = detector_model(images)
-            # Calculate JSD for each image in the batch
-            # Assuming images and reconstructions are normalized tensors with same shape
-            batch_jsd = jsd(images, reconstructions)  # Expected shape [batch_size]
-            batch_jsd = batch_jsd.view(batch_jsd.size(0), -1).mean(dim=1)  # [batch_size]
-            # Filter images based on JSD threshold
-            logits_recon = classifier_model(reconstructions)
-            probs_recon = softmax_with_temperature(logits_recon, T=temperature)
-
-            # Compute JSD for each sample in batch
-            batch_jsd = jsd(probs_x, probs_recon)  # shape: (batch_size,)
-
-            # Create mask for samples passing the threshold
-            mask = batch_jsd <= jsd_threshold
-
-            # Append filtered images and labels (on CPU)
-            if mask.any():
-                kept_images.append(images[mask].cpu())
-                kept_labels.append(labels[mask].cpu())
-    
-
-    if len(kept_images) == 0:
-        # No images passed the filter, return empty loader
-        empty_dataset = TensorDataset(torch.empty((0, *images.shape[1:])), torch.empty(0, dtype=torch.long))
-        return DataLoader(empty_dataset, batch_size=adversarial_loader.batch_size, shuffle=False)
-
-    # Concatenate filtered images and labels
-    filtered_images = torch.cat(kept_images, dim=0)
-    filtered_labels = torch.cat(kept_labels, dim=0)
-    
-    # Create a new DataLoader from filtered data
-    filtered_dataset = TensorDataset(filtered_images, filtered_labels)
-    filtered_loader = DataLoader(filtered_dataset, batch_size=adversarial_loader.batch_size, shuffle=False)
-    
-    return filtered_loader
-
-
-
 
 def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
     reformer_model.to(device)
@@ -195,7 +128,6 @@ def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
     reconstructed_loader = DataLoader(dataset, batch_size=filtered_loader.batch_size, shuffle=False)
     
     return reconstructed_loader
-
 
 def classify_images(classifier_model, perturbed_loader, device='cpu'):
     """
@@ -229,24 +161,3 @@ def classify_images(classifier_model, perturbed_loader, device='cpu'):
     f1 = f1_score(all_labels, all_preds, average='macro')
     print(f"F1 score of images classification: {f1:.4f}")
     return f1
-    
-
-def get_one_tenth_loader(adversarial_loader):
-    """
-    Returns a DataLoader with roughly 1/10th of the data from adversarial_loader.
-    """
-    dataset = adversarial_loader.dataset
-    total_size = len(dataset)
-    target_size = max(1, total_size // 10)  # At least 1 sample
-
-    # Just take the first `target_size` samples
-    indices = list(range(target_size))
-
-    subset = Subset(dataset, indices)
-    reduced_loader = DataLoader(
-        subset,
-        batch_size=adversarial_loader.batch_size,
-        shuffle=False  # keep order consistent
-    )
-
-    return reduced_loader

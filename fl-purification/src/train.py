@@ -65,7 +65,7 @@ def main():
     args = parser.parse_args()
 
 
-    train_loader, val_loader, test_loader = get_dataloader_MNIST(args.dataset)
+    train_loader, val_loader, test_loader = get_dataloader_MNIST()
 
     # Here you need to instantiate your model according to the chosen model type
     # For example:

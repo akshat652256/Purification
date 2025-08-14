@@ -1,7 +1,6 @@
 import os
 import torch
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
 
 class AdversarialDataset(Dataset):
     def __init__(self, base_dir, dataset_name, attack_type, strength=None):
