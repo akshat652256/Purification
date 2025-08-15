@@ -28,8 +28,6 @@ def compute_threshold(detector_1, detector_2, val_loader, device):
             # L2 norm (mean squared error) per sample
             l2_err = torch.mean((images - outputs_2) ** 2, dim=[1, 2, 3])
 
-            print("L1 error per sample:", l1_err.cpu().numpy())
-            print("L2 error per sample:", l2_err.cpu().numpy())
             l1_total += l1_err.sum().item()
             l2_total += l2_err.sum().item()
             count += images.size(0)
@@ -61,8 +59,6 @@ def filter(detector_1, threshold_1, detector_2, threshold_2, adversarial_loader,
             l1_err = torch.mean(torch.abs(images - outputs_1), dim=[1, 2, 3])
             # L2 reconstruction error per sample for detector_2
             l2_err = torch.mean((images - outputs_2) ** 2, dim=[1, 2, 3])
-            print("L1 error per sample:", l1_err.cpu().numpy())
-            print("L2 error per sample:", l2_err.cpu().numpy())
             # Condition: errors below respective thresholds
             mask = (l1_err < threshold_1) & (l2_err < threshold_2)
 

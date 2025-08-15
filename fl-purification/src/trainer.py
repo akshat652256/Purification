@@ -52,39 +52,38 @@ def train_autoencoder(model, train_loader, val_loader, epochs=50, lr=0.001, use_
     return model
 
 
-def train_classifier(model, train_loader, val_loader, epochs=50, lr=0.01, use_wandb=False,
+
+def train_classifier(model, train_loader, val_loader, epochs=10, lr=0.01, use_wandb=False,
                     device='cuda' if torch.cuda.is_available() else 'cpu'):
     model.to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=lr)
+    optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=1e-5)
     
+    epochs = 10
     for epoch in range(epochs):
-        # Training phase
         model.train()
-        running_loss = 0.0
-        for images, labels in train_loader:
-            images, labels = images.to(device), labels.to(device)
+        for inputs, labels in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)  # Move to device
             optimizer.zero_grad()
-            outputs = model(images)
+            outputs = model(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-            running_loss += loss.item()
-        
-        # Validation phase
-        model.eval()
-        all_preds = []
-        all_labels = []
-        with torch.no_grad():
-            for images, labels in val_loader:
-                images, labels = images.to(device), labels.to(device)
-                outputs = model(images)
-                _, predicted = torch.max(outputs.data, 1)
-                all_preds.extend(predicted.cpu().numpy())
-                all_labels.extend(labels.cpu().numpy())
-
-        val_f1 = f1_score(all_labels, all_preds, average='macro')
-        print(f"Epoch: {epoch+1}/{epochs}, Loss: {running_loss/len(train_loader):.4f}, Val F1: {val_f1:.4f}")
     
+    # Validation evaluation to compute F1 score
+    model.eval()
+    all_preds = []
+    all_labels = []
+    with torch.no_grad():
+        for inputs, labels in val_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            preds = torch.argmax(outputs, dim=1)
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+    
+    val_f1 = f1_score(all_labels, all_preds, average='macro')
+    print(f"Validation F1 Score: {val_f1:.4f}")
+
     return model
 
