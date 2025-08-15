@@ -25,6 +25,7 @@ def softmax_with_temperature(logits, T):
 
 
 def compute_thresholds(classifier_model, detector_model, val_loader, device='cuda' if torch.cuda.is_available() else 'cpu'):
+    import collections
     detector_model.eval()
     classifier_model.eval()
     l1_sum = 0.0
@@ -32,30 +33,47 @@ def compute_thresholds(classifier_model, detector_model, val_loader, device='cud
     jsd_sum_T40 = 0.0
     num_samples = 0
 
+    # Use a defaultdict to track all JSD values for each class
+    jsd_class_dict = collections.defaultdict(list)
+
     with torch.no_grad():
-        for imgs, _ in val_loader:
+        for imgs, targets in val_loader:
             imgs = imgs.to(device)
-            # Pass images through detector (autoencoder)
+            targets = targets.to(device)
             recon_imgs = detector_model(imgs)
+
             # L1 reconstruction loss
-            l1_loss = torch.abs(imgs - recon_imgs).mean(dim=(1,2,3)).sum().item()   # sum over batch
-            l1_sum += l1_loss
+            l1_loss = torch.abs(imgs - recon_imgs).mean(dim=(1,2,3))
+            l1_sum += l1_loss.sum().item()
             batch_size = imgs.size(0)
             num_samples += batch_size
 
             # Classifier logits
             logits_original = classifier_model(imgs)
             logits_recon = classifier_model(recon_imgs)
+
             # Softmax with Temperature T=10 and T=40
             probs_orig_T10 = softmax_with_temperature(logits_original, T=10)
             probs_recon_T10 = softmax_with_temperature(logits_recon, T=10)
-            jsd_T10 = jsd(probs_orig_T10, probs_recon_T10).sum().item()
-            jsd_sum_T10 += jsd_T10
+            jsd_T10 = jsd(probs_orig_T10, probs_recon_T10)  # shape: [batch_size]
+            jsd_sum_T10 += jsd_T10.sum().item()
 
+            # Track JSD values per class
+            for i in range(batch_size):
+                class_idx = targets[i].item()
+                jsd_class_dict[class_idx].append(jsd_T10[i].item())
+
+            # T=40 as usual
             probs_orig_T40 = softmax_with_temperature(logits_original, T=40)
             probs_recon_T40 = softmax_with_temperature(logits_recon, T=40)
-            jsd_T40 = jsd(probs_orig_T40, probs_recon_T40).sum().item()
-            jsd_sum_T40 += jsd_T40
+            jsd_T40 = jsd(probs_orig_T40, probs_recon_T40)
+            jsd_sum_T40 += jsd_T40.sum().item()
+
+    # Print min/max for JSD T=10 for each class
+    print("JSD T=10 ranges per class:")
+    for class_idx in sorted(jsd_class_dict.keys()):
+        values = jsd_class_dict[class_idx]
+        print(f"Class {class_idx}: Min={min(values):.6f}, Max={max(values):.6f}, Count={len(values)}")
 
     threshold_1 = l1_sum / num_samples
     threshold_2 = jsd_sum_T10 / num_samples
