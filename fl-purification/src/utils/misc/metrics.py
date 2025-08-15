@@ -28,12 +28,6 @@ def compute_thresholds(classifier_model, detector_model, val_loader, device='cud
     import collections
     detector_model.eval()
     classifier_model.eval()
-    l1_sum = 0.0
-    jsd_sum_T10 = 0.0
-    jsd_sum_T40 = 0.0
-    num_samples = 0
-
-    # Track per-class statistics
     l1_class_dict = collections.defaultdict(list)
     jsd_T10_class_dict = collections.defaultdict(list)
     jsd_T40_class_dict = collections.defaultdict(list)
@@ -46,9 +40,6 @@ def compute_thresholds(classifier_model, detector_model, val_loader, device='cud
 
             # L1 reconstruction loss per image
             l1_loss = torch.abs(imgs - recon_imgs).mean(dim=(1,2,3))  # shape: [batch_size]
-            l1_sum += l1_loss.sum().item()
-            batch_size = imgs.size(0)
-            num_samples += batch_size
 
             # Classifier logits
             logits_original = classifier_model(imgs)
@@ -58,37 +49,31 @@ def compute_thresholds(classifier_model, detector_model, val_loader, device='cud
             probs_orig_T10 = softmax_with_temperature(logits_original, T=10)
             probs_recon_T10 = softmax_with_temperature(logits_recon, T=10)
             jsd_T10 = jsd(probs_orig_T10, probs_recon_T10)  # shape: [batch_size]
-            jsd_sum_T10 += jsd_T10.sum().item()
 
             # Softmax with Temperature T=40
             probs_orig_T40 = softmax_with_temperature(logits_original, T=40)
             probs_recon_T40 = softmax_with_temperature(logits_recon, T=40)
             jsd_T40 = jsd(probs_orig_T40, probs_recon_T40)  # shape: [batch_size]
-            jsd_sum_T40 += jsd_T40.sum().item()
 
             # Track values per class
-            for i in range(batch_size):
+            for i in range(imgs.size(0)):
                 class_idx = targets[i].item()
                 l1_class_dict[class_idx].append(l1_loss[i].item())
                 jsd_T10_class_dict[class_idx].append(jsd_T10[i].item())
                 jsd_T40_class_dict[class_idx].append(jsd_T40[i].item())
 
-    # Print min/max/count for L1 and JSD@10, JSD@40 per class
-    print("Ranges per class:")
-    for class_idx in sorted(set(list(l1_class_dict.keys()) + list(jsd_T10_class_dict.keys()) + list(jsd_T40_class_dict.keys()))):
-        l1_vals = l1_class_dict[class_idx]
-        jsd10_vals = jsd_T10_class_dict[class_idx]
-        jsd40_vals = jsd_T40_class_dict[class_idx]
-        l1_str = f"L1: Min={min(l1_vals):.6f}, Max={max(l1_vals):.6f}, Count={len(l1_vals)}" if l1_vals else "L1: No samples"
-        jsd10_str = f"JSD@10: Min={min(jsd10_vals):.6f}, Max={max(jsd10_vals):.6f}, Count={len(jsd10_vals)}" if jsd10_vals else "JSD@10: No samples"
-        jsd40_str = f"JSD@40: Min={min(jsd40_vals):.6f}, Max={max(jsd40_vals):.6f}, Count={len(jsd40_vals)}" if jsd40_vals else "JSD@40: No samples"
-        print(f"Class {class_idx}: {l1_str} | {jsd10_str} | {jsd40_str}")
-
-    threshold_1 = l1_sum / num_samples
-    threshold_2 = jsd_sum_T10 / num_samples
-    threshold_3 = jsd_sum_T40 / num_samples
+    # Calculate per-class average thresholds
+    threshold_1 = {}
+    threshold_2 = {}
+    threshold_3 = {}
+    class_indices = sorted(set(list(l1_class_dict.keys()) + list(jsd_T10_class_dict.keys()) + list(jsd_T40_class_dict.keys())))
+    for class_idx in class_indices:
+        threshold_1[class_idx] = sum(l1_class_dict[class_idx]) / len(l1_class_dict[class_idx]) if l1_class_dict[class_idx] else 0.0
+        threshold_2[class_idx] = sum(jsd_T10_class_dict[class_idx]) / len(jsd_T10_class_dict[class_idx]) if jsd_T10_class_dict[class_idx] else 0.0
+        threshold_3[class_idx] = sum(jsd_T40_class_dict[class_idx]) / len(jsd_T40_class_dict[class_idx]) if jsd_T40_class_dict[class_idx] else 0.0
 
     return threshold_1, threshold_2, threshold_3
+
 
 
 def filter(classifier_model, detector_model, adversarial_loader, threshold_1, threshold_2, threshold_3, device='cuda' if torch.cuda.is_available() else 'cpu'):
@@ -122,23 +107,31 @@ def filter(classifier_model, detector_model, adversarial_loader, threshold_1, th
             probs_recon_T40 = softmax_with_temperature(logits_recon, T=40)
             jsd_T40 = jsd(probs_orig_T40, probs_recon_T40)
 
-            # Image filter mask: True if all below threshold
-            mask = (l1 <= threshold_1) & (jsd_T10 <= threshold_2) & (jsd_T40 <= threshold_3)
+            # Per-class thresholding
+            batch_keep_mask = []
+            for i in range(imgs.size(0)):
+                class_idx = targets[i].item()
+                t1 = threshold_1.get(class_idx, float('inf'))
+                t2 = threshold_2.get(class_idx, float('inf'))
+                t3 = threshold_3.get(class_idx, float('inf'))
+                keep = (l1[i] <= t1) and (jsd_T10[i] <= t2) and (jsd_T40[i] <= t3)
+                batch_keep_mask.append(keep)
 
-            kept_images.append(imgs[mask].cpu())
-            kept_targets.append(targets[mask].cpu())
+            batch_keep_mask = torch.tensor(batch_keep_mask, dtype=torch.bool)
+            kept_images.append(imgs[batch_keep_mask].cpu())
+            kept_targets.append(targets[batch_keep_mask].cpu())
 
-    if len(kept_images) == 0:
+    if not kept_images or all([img.numel() == 0 for img in kept_images]):
         print("No images passed the filtering criteria.")
         return None
     
     filtered_imgs = torch.cat(kept_images, dim=0)
     filtered_targets = torch.cat(kept_targets, dim=0)
-
     filtered_dataset = TensorDataset(filtered_imgs, filtered_targets)
     filtered_loader = DataLoader(filtered_dataset, batch_size=adversarial_loader.batch_size, shuffle=False)
 
     return filtered_loader
+
     
 def get_adversarial_dataloader(adversarial_dataset, batch_size=64, shuffle=False):
     # Concatenate all batches into single tensors
