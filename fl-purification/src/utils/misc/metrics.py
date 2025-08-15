@@ -38,6 +38,8 @@ def compute_thresholds(classifier_model, detector_model, val_loader, device='cud
             # Pass images through detector (autoencoder)
             recon_imgs = detector_model(imgs)
             # L1 reconstruction loss
+            print("imgs shape:", imgs.shape)
+            print("recon_imgs shape:", recon_imgs.shape)
             l1_loss = torch.abs(imgs - recon_imgs).mean(dim=(1,2,3)).sum().item()   # sum over batch
             l1_sum += l1_loss
             batch_size = imgs.size(0)
