@@ -61,7 +61,7 @@ def load_model_from_path(model_type, device='cuda' if torch.cuda.is_available() 
 def main():
     parser = argparse.ArgumentParser(description="Train a model on MedMNIST dataset")
     parser.add_argument('--dataset', type=str, default='bloodmnist', help="Dataset name from MedMNIST")
-    parser.add_argument('--epochs', type=int, default=20, help="Number of epochs to train")
+    parser.add_argument('--epochs', type=int, default=200, help="Number of epochs to train")
     parser.add_argument('--lr', type=float, default=1e-3, help="Learning rate for training")
     parser.add_argument('--model', type=str, default='classifier', choices=['classifier', 'detector', 'reformer'],
                         help="Choose which model training function to use")

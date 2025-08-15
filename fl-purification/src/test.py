@@ -18,8 +18,6 @@ def parse_args():
                         help='Attack type')
     parser.add_argument('--strength', type=str, default='strong', choices=['weak', 'strong', None],
                         help="Attack strength")
-    parser.add_argument('--reformer_type', type=str, default='dae', choices=['dae', 'hiprnet', 'laplacian'],
-                        help="Type of reformer to use")
     return parser.parse_args()
 
 
@@ -30,15 +28,17 @@ def main():
 
     # Load models
     classifier_model = load_classifier(args.dataset, device=device)
-    detector_model = load_model_from_path('detector',None, device=device)
-    reformer_model = load_model_from_path('reformer', reformer_type=args.reformer_type, device=device)
+    detector_model = load_model_from_path('detector',device=device)
+    reformer_model = load_model_from_path('detector', device=device)
 
     # Load clean dataloaders
     train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
 
     # Compute JSD threshold on clean validation data using detector reconstructions
-    jsd_threshold = compute_jsd_threshold(detector_model,classifier_model, val_loader, device=device)
-    print(f"Computed JSD threshold: {jsd_threshold}")
+    threshold_1,threshold_2,threshold_3 = compute_thresholds(detector_model,classifier_model, val_loader, device=device)
+    print(f"Computed L1 threshold: {threshold_1}")
+    print(f"Computed jsd(T=10) threshold: {threshold_2}")
+    print(f"Computed jsd(T=40) threshold: {threshold_3}")
 
     # Create adversarial dataset instance with parameters from parser args
     adversarial_dataset = AdversarialDataset(
@@ -51,7 +51,7 @@ def main():
     adversarial_loader = get_adversarial_dataloader(adversarial_dataset)
 
     # Filter adversarial images based on JSD threshold
-    filtered_loader = filter_adversarial_images_by_jsd(detector_model, classifier_model, adversarial_loader, jsd_threshold, device=device)
+    filtered_loader = filter(classifier_model,detector_model,adversarial_loader,threshold_1,threshold_2,threshold_3,device=device)
 
     if filtered_loader is not None:
         print(f"Number of images passing through detector: {len(filtered_loader.dataset)}")

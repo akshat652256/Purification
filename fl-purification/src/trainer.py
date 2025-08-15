@@ -74,8 +74,7 @@ def train_classifier(model, train_loader, val_loader, epochs=350, lr=1e-2,device
 
             optimizer.zero_grad()
             outputs = model(images)
-            if isinstance(labels, (list, tuple)):
-                labels = labels[0]
+            labels = labels.squeeze()
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -95,8 +94,7 @@ def train_classifier(model, train_loader, val_loader, epochs=350, lr=1e-2,device
             for images, labels in val_loader:
                 images, labels = images.to(device), labels.to(device)
                 outputs = model(images)
-                if isinstance(labels, (list, tuple)):
-                    labels = labels[0]
+                labels = labels.squeeze()
                 loss = criterion(outputs, labels)
                 _, preds = torch.max(outputs, 1)
                 val_loss += loss.item() * images.size(0)
