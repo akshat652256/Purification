@@ -5,17 +5,11 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import medmnist
 from medmnist import INFO
-from trainer import train_classifier, train_detector, train_reformer, train_reformer_hipyrnet, train_reformer_lptn
-from models.Classifier.Resnet import BasicBlock , ResNet18_MedMNIST
-from models.Detector.AE import SimpleAutoencoder
-from models.Reformer.DAE import DenoisingAutoEncoder
-from models.Reformer.Hypernet import AdaptiveLaplacianPyramidUNet
-from models.Reformer.SMP import SMPPyramidDenoiser
-from models.Reformer.laplacian import SimplePyramidDenoiser
-from models.Reformer.LPTN import LPTNPaper
+from trainer import train_classifier, train_autoencoder
+from models.Classifier.CNN import MEDMNIST_CNN
+from models.Defensive_models.AE import MEDMNIST_AE
 from Data_generation import get_dataloaders
-from skimage.metrics import structural_similarity as ssim
-from skimage.metrics import peak_signal_noise_ratio as psnr
+from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 import numpy as np
 import wandb
 
@@ -28,7 +22,7 @@ def save_model_path(model, model_type):
     print(f"Model saved to {save_path}")
 
 
-def load_model_from_path(model_type, reformer_type, device='cuda' if torch.cuda.is_available() else 'cpu'):
+def load_model_from_path(model_type, device='cuda' if torch.cuda.is_available() else 'cpu'):
     """
     Load a trained model of the specified type from the predefined saved model path.
 
@@ -45,17 +39,11 @@ def load_model_from_path(model_type, reformer_type, device='cuda' if torch.cuda.
 
     # Instantiate model architecture based on model_type
     if model_type == 'classifier':
-        model = ResNet18_MedMNIST()
+        model = MEDMNIST_CNN()
     elif model_type == 'detector':
-        model = SimpleAutoencoder()
-    elif model_type == 'reformer' and reformer_type == "dae":
-        model = DenoisingAutoEncoder()
-    elif model_type == 'reformer' and reformer_type == "hiprnet":
-        print("Using SMP Reformer")
-        model = SMPPyramidDenoiser()
-    elif model_type == 'reformer' and reformer_type == "laplacian":
-        print("Using Laplacian Reformer")
-        model = SimplePyramidDenoiser()
+        model = MEDMNIST_AE()
+    elif model_type == 'reformer':
+        model = MEDMNIST_AE()
     else:
         raise ValueError(f"Unknown model_type: {model_type}")
 
@@ -75,55 +63,27 @@ def main():
     parser.add_argument('--dataset', type=str, default='bloodmnist', help="Dataset name from MedMNIST")
     parser.add_argument('--epochs', type=int, default=20, help="Number of epochs to train")
     parser.add_argument('--lr', type=float, default=1e-3, help="Learning rate for training")
-    parser.add_argument('--reformer-type', type=str, default="dae", help="set reformer to use")
     parser.add_argument('--model', type=str, default='classifier', choices=['classifier', 'detector', 'reformer'],
                         help="Choose which model training function to use")
-    parser.add_argument('--use_wandb', action='store_true', help="Enable Weights & Biases logging")
     args = parser.parse_args()
-
-    if args.use_wandb:
-        wandb.login(key="93e0092bafec12515dce3493023285e27311c27a")
-        wandb.init(project="fl-purification", 
-                   entity="invi-bhagyesh-manipal",
-                   config={
-            "dataset": args.dataset,
-            "epochs": args.epochs,
-            "learning_rate": args.lr,
-            "model": args.model,
-            "reformer_type": args.reformer_type
-        })
 
     train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
 
     # Here you need to instantiate your model according to the chosen model type
     # For example:
     if args.model == 'classifier':
-        model = ResNet18_MedMNIST()  
+        model = MEDMNIST_CNN()  
         train_func = train_classifier
     elif args.model == 'detector':
-        model = SimpleAutoencoder()  
-        train_func = train_detector
-    elif args.model == 'reformer' and args.reformer_type == "dae":
-        model = DenoisingAutoEncoder()  
-        train_func = train_reformer
-    elif args.model == 'reformer' and args.reformer_type == "hiprnet":
-        print("Using Hypernetwork Reformer")
-        model = SMPPyramidDenoiser() # Im changing this each time, fix this logix later
-        train_func = train_reformer_hipyrnet # have to make modifications to this or create a new function for hiprnet related trianers
-    elif args.model == 'reformer' and args.reformer_type == "laplacian":
-        print("Using Adaptive Laplacian Pyramid UNet")
-        model = SimplePyramidDenoiser()
-        train_func = train_reformer_hipyrnet
-    elif args.model == 'reformer' and args.reformer_type == "lptn":
-        print("Using LPTN")
-        model = LPTNPaper( nrb_high=5, nrb_low=3)
-        train_func = train_reformer_lptn
+        model = MEDMNIST_AE() 
+        train_func = train_autoencoder
+    elif args.model == 'reformer':
+        model = MEDMNIST_AE()  
+        train_func = train_autoencoder
+    
 
     # Train the model
-    trained_model = train_func(model, train_loader, val_loader, epochs=args.epochs, lr=args.lr, use_wandb=args.use_wandb)
-    if args.use_wandb:
-        wandb.save("*.pth")
-        wandb.finish()
+    trained_model = train_func(model, train_loader, val_loader, epochs=args.epochs, lr=args.lr)
     save_model_path(trained_model, args.model)
 
 if __name__ == "__main__":

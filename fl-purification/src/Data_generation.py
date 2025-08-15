@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torchattacks import CW
 import shutil
 from utils.misc.Attacks import fgsm_attack,pgd_attack,carlini_attack
-from models.Classifier.Resnet import BasicBlock , ResNet18_MedMNIST
+from models.Classifier.CNN import MEDMNIST_CNN
 
 def get_dataloaders(data_flag, batch_size=64, download=True):
     info = INFO[data_flag]
@@ -24,53 +24,56 @@ def get_dataloaders(data_flag, batch_size=64, download=True):
     return train_loader, val_loader, test_loader
 
 
-def generate_adversarial_dataset(model, dataloader, attack_type, device, **attack_params):
+def generate_perturbed_full_loader(model, dataloader, attack_type='cw', device='cuda', **attack_params):
     """
-    Generate adversarially perturbed dataset using the specified attack.
+    Generate a DataLoader containing adversarial examples for the entire dataset.
 
     Args:
-        model: Pretrained model for attacks.
-        dataloader: DataLoader with original dataset.
-        attack_type: String specifying attack - 'fgsm', 'pgd', or 'cw'.
-        device: Device to run computations ('cuda' or 'cpu').
-        attack_params: Parameters specific to the attack function.
+        model: Trained model.
+        dataloader: DataLoader for the entire dataset.
+        attack_type: 'cw', 'fgsm' or 'pgd'.
+        device: Device for computation ('cuda' or 'cpu').
+        attack_params: Parameters for the attacks.
 
     Returns:
-        perturbed_loader: DataLoader with adversarially perturbed images and original labels.
+        perturbed_loader: DataLoader with adversarial examples and labels for the entire data.
     """
+    model = model.to(device)
     model.eval()
+
     perturbed_images = []
     perturbed_labels = []
-    
-    for images, labels in dataloader:
-        images, labels = images.to(device), labels.to(device).long().squeeze()
+
+    for inputs, labels in dataloader:
+        inputs, labels = inputs.to(device), labels.to(device)
+        labels = labels.squeeze() 
         if attack_type == 'fgsm':
-            images.requires_grad = True
-            outputs = model(images)
+            inputs.requires_grad = True
+            outputs = model(inputs)
             loss = F.cross_entropy(outputs, labels)
             model.zero_grad()
             loss.backward()
-            data_grad = images.grad.data
+            data_grad = inputs.grad.data
             epsilon = attack_params.get('epsilon', 0.1)
-            adv_images = fgsm_attack(images, epsilon, data_grad)
+            adv_examples = fgsm_attack(inputs, epsilon, data_grad)
         elif attack_type == 'pgd':
             epsilon = attack_params.get('epsilon', 0.1)
             alpha = attack_params.get('alpha', 0.01)
             iters = attack_params.get('iters', 40)
-            adv_images = pgd_attack(model, images, labels, epsilon, alpha, iters)
+            adv_examples = pgd_attack(model, inputs, labels, epsilon, alpha, iters)
         elif attack_type == 'cw':
-            c = attack_params.get('c', 1e-2)
-            kappa = attack_params.get('kappa', 0)
-            steps = attack_params.get('steps', 1000)
+            c = attack_params.get('c', 1)
             lr = attack_params.get('lr', 0.01)
-            adv_images = carlini_attack(model, images, labels, c, kappa, steps, lr)
+            steps = attack_params.get('steps', 1000)
+            kappa = attack_params.get('kappa', 0)
+            attack = CW(model, c=c, lr=lr, steps=steps, kappa=kappa)
+            adv_examples = attack(inputs, labels)
         else:
             raise ValueError(f"Unsupported attack type: {attack_type}")
 
-        perturbed_images.append(adv_images.cpu())
+        perturbed_images.append(adv_examples.cpu())
         perturbed_labels.append(labels.cpu())
 
-    # Concatenate all batches
     perturbed_images = torch.cat(perturbed_images, dim=0)
     perturbed_labels = torch.cat(perturbed_labels, dim=0)
 
@@ -78,6 +81,7 @@ def generate_adversarial_dataset(model, dataloader, attack_type, device, **attac
     perturbed_loader = DataLoader(perturbed_dataset, batch_size=dataloader.batch_size, shuffle=False)
 
     return perturbed_loader
+
 
 def save_perturbed_dataset(perturbed_loader, base_dir, dataset_name, attack_type, strength=None):
     """
@@ -93,7 +97,6 @@ def save_perturbed_dataset(perturbed_loader, base_dir, dataset_name, attack_type
 
     print(f"Saved perturbed dataset under: {dir_path}")
     return dir_path
-
 
 def zip_directory(dir_path, zip_output_path):
     """
@@ -111,7 +114,6 @@ def zip_directory(dir_path, zip_output_path):
     print(f"Files zipped successfully to {zip_output_path}")
     return zip_output_path
 
-
 def load_classifier(dataset, device='cpu'):
     """
     Load the pretrained classifier model weights based on dataset name.
@@ -121,7 +123,7 @@ def load_classifier(dataset, device='cpu'):
         raise FileNotFoundError(f"Classifier model for dataset '{dataset}' not found at {model_path}")
 
     # Initialize your model architecture (adjust according to your model)
-    model = ResNet18_MedMNIST()
+    model = MEDMNIST_CNN()
     
     # Load the state dictionary
     state_dict = torch.load(model_path, map_location=device)
@@ -131,8 +133,3 @@ def load_classifier(dataset, device='cpu'):
     model.eval()
     return model
 
-# example usage 
-# train_loader, val_loader, test_loader = get_dataloaders('bloodmnist')
-# perturbed_loader = generate_adversarial_dataset(model, test_loader, 'cw', DEVICE, c=1e-1, kappa=5, steps=1000, lr=0.005)
-# save_perturbed_dataset(perturbed_loader, base_dir='medmnist', dataset_name='bloodmnist', attack_type='cw', strength='strong')
-# zip_file = zip_directory('/kaggle/working', '/kaggle/working/all_files.zip')
