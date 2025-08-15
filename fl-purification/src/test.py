@@ -35,7 +35,7 @@ def main():
     train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
 
     # Compute JSD threshold on clean validation data using detector reconstructions
-    threshold_1,threshold_2,threshold_3 = compute_thresholds(detector_model,classifier_model, val_loader, device=device)
+    threshold_1,threshold_2,threshold_3 = compute_thresholds(classifier_model,detector_model, val_loader, device=device)
     print(f"Computed L1 threshold: {threshold_1}")
     print(f"Computed jsd(T=10) threshold: {threshold_2}")
     print(f"Computed jsd(T=40) threshold: {threshold_3}")
