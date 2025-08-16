@@ -1,1 +1,1 @@
-from topoAE.scripts.mnist_gen import download_mnist_data
+from topoAE.scripts.mnist_gen import infer_single_image

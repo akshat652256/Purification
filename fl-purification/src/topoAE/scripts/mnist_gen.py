@@ -320,6 +320,98 @@ def main():
     print("- mnist_test_latents.csv: Test set latent representations + labels") 
     print("- mnist_*_reconstruction_stats.csv: Reconstruction error statistics")
 
+from PIL import Image
+
+def infer_single_image(
+    image_path_or_array,
+    model_path,
+    device='cpu'
+):
+    """
+    Perform inference on a single image using the pre-trained MNIST Topological Autoencoder.
+    
+    Args:
+        image_path_or_array: Path to image file (str) or numpy array/PIL Image
+        model_path: Path to pre-trained model (.pth file)
+        device: Device to run inference on ('cpu' or 'cuda')
+    
+    Returns:
+        tuple: (latent_representation, reconstructed_image)
+            - latent_representation: numpy array of shape (latent_dim,)
+            - reconstructed_image: numpy array of shape (1, 28, 28) for MNIST
+    """
+    
+    # Load and prepare the model
+    print("Loading pre-trained model...")
+    model = TopologicallyRegularizedAutoencoder(
+        autoencoder_model='DeepAE',
+        lam=0.5002972000959738,
+        toposig_kwargs={'match_edges': 'symmetric'}
+    )
+    
+    # Load model weights
+    try:
+        state_dict = torch.load(model_path, map_location=device)
+        model.load_state_dict(state_dict)
+        model.eval()
+        print("Model loaded successfully!")
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return None, None
+    
+    if device == 'cuda' and torch.cuda.is_available():
+        model = model.cuda()
+    elif device == 'cuda':
+        print("CUDA requested but not available, using CPU")
+        device = 'cpu'
+    
+    # Prepare the image
+    if isinstance(image_path_or_array, str):
+        # Load image from path
+        image = Image.open(image_path_or_array).convert('L')  # Convert to grayscale
+        image = image.resize((28, 28))  # Resize to MNIST size
+        image_array = np.array(image) / 255.0  # Normalize to [0, 1]
+    elif isinstance(image_path_or_array, Image.Image):
+        # PIL Image
+        image = image_path_or_array.convert('L').resize((28, 28))
+        image_array = np.array(image) / 255.0
+    else:
+        # Assume it's already a numpy array
+        image_array = image_path_or_array
+        # Ensure it's the right shape and normalized
+        if image_array.max() > 1.0:
+            image_array = image_array / 255.0
+    
+    # Convert to tensor format expected by the model: (batch_size, channels, height, width)
+    # Normalize to [-1, 1] range to match training
+    image_tensor = torch.FloatTensor(image_array).unsqueeze(0).unsqueeze(0)  # Add batch and channel dims
+    image_tensor = (image_tensor - 0.5) / 0.5  # Normalize to [-1, 1]
+    
+    if device == 'cuda':
+        image_tensor = image_tensor.cuda()
+    
+    # Perform inference
+    print("Running inference...")
+    model.eval()
+    with torch.no_grad():
+        # Get latent representation
+        latent = model.encode(image_tensor)
+        
+        # Get reconstruction
+        reconstructed = model.decode(latent)
+        
+        # Convert to numpy
+        latent_np = latent.detach().cpu().numpy().squeeze()  # Remove batch dimension
+        reconstructed_np = reconstructed.detach().cpu().numpy().squeeze()  # Remove batch dimension
+        
+        # Convert reconstruction back to [0, 1] range for display
+        reconstructed_np = (reconstructed_np + 1.0) / 2.0
+        
+    print(f"Inference completed!")
+    print(f"Latent shape: {latent_np.shape}")
+    print(f"Reconstructed image shape: {reconstructed_np.shape}")
+    
+    return latent_np, reconstructed_np
 
 if __name__ == "__main__":
     main()
