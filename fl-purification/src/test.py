@@ -2,7 +2,7 @@ import argparse
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 from train import load_model_from_path
-from Data_generation import get_dataloaders,load_classifier,load_mnist_model
+from Data_generation import get_dataloaders,get_dataloader_MNIST,load_classifier,load_mnist_model
 from utils.misc.metrics import *
 from dataloader import AdversarialDataset
 from sklearn.metrics import f1_score  
@@ -41,8 +41,11 @@ def main():
 
         
 
-    # Load clean dataloaders
-    train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
+    if args.base_dir == 'medmnist':
+        train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
+
+    elif args.base_dir == 'others':
+        train_loader, val_loader, test_loader = get_dataloader_MNIST()
 
     # Compute JSD threshold on clean validation data using detector reconstructions
     if args.base_dir == 'medmnist':
