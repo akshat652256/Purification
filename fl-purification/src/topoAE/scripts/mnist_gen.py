@@ -360,34 +360,29 @@ def load_trained_model(model_path, device='cpu'):
     
     return model
 
-def infer_with_loaded_model(model, image_path_or_array, device='cpu'):
+def infer_with_loaded_model(model, image, device='cpu'):
     """
     Perform inference on a single image using an already loaded model.
     
     Args:
         model: Pre-loaded model from load_trained_model()
-        image_path_or_array: Path to image file (str) or numpy array/PIL Image
+        image: PIL Image object or numpy array
         device: Device the model is on ('cpu' or 'cuda')
     
     Returns:
         tuple: (latent_representation, reconstructed_image)
             - latent_representation: numpy array of shape (latent_dim,)
-            - reconstructed_image: numpy array of shape (1, 28, 28) for MNIST
+            - reconstructed_image: numpy array of shape (28, 28) for MNIST
     """
     
     # Prepare the image
-    if isinstance(image_path_or_array, str):
-        # Load image from path
-        image = Image.open(image_path_or_array).convert('L')  # Convert to grayscale
-        image = image.resize((28, 28))  # Resize to MNIST size
-        image_array = np.array(image) / 255.0  # Normalize to [0, 1]
-    elif isinstance(image_path_or_array, Image.Image):
+    if isinstance(image, Image.Image):
         # PIL Image
-        image = image_path_or_array.convert('L').resize((28, 28))
+        image = image.convert('L').resize((28, 28))
         image_array = np.array(image) / 255.0
     else:
         # Assume it's already a numpy array
-        image_array = image_path_or_array
+        image_array = image
         # Ensure it's the right shape and normalized
         if image_array.max() > 1.0:
             image_array = image_array / 255.0

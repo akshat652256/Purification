@@ -1,11 +1,22 @@
 from topoAE.scripts.mnist_gen import load_trained_model, infer_with_loaded_model
 
 model = load_trained_model("path/to/model.pth", device='cuda')
+"""
+        image_array = np.array(image) / 255.0
+Note: we are dividing by 255 here change if needed.
+"""
 
-# # Use the model multiple times without reloading
-# latent1, reconstructed1 = infer_with_loaded_model(model, "image1.png", device='cuda')
-# latent2, reconstructed2 = infer_with_loaded_model(model, "image2.png", device='cuda')
-# latent3, reconstructed3 = infer_with_loaded_model(model, image_array, device='cuda')
+# # Load model once
+# model = load_trained_model("path/to/model.pth", device='cuda')
+
+# # With PIL Image
+# from PIL import Image
+# img = Image.open("path/to/image.png")
+# latent, reconstructed = infer_with_loaded_model(model, img, device='cuda')
+
+# # With numpy array
+# img_array = np.random.rand(28, 28)  # Your image data
+# latent, reconstructed = infer_with_loaded_model(model, img_array, device='cuda')
 
 # # Process many images efficiently
 # for image_path in image_list:
