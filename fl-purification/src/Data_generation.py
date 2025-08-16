@@ -186,7 +186,7 @@ def load_mnist_model(model_type='classifier', device='cpu'):
         raise FileNotFoundError(f"Model weights not found at {model_path}")
 
     state_dict = torch.load(model_path, map_location=device)
-    model.load_state_dict(state_dict)
+    model.load_state_dict(state_dict,strict=True)
 
     model.to(device)
     model.eval()
