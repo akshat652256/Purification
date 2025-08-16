@@ -23,6 +23,13 @@ def MNIST():
     parameters = {
     }
 
+@ingredient.named_config
+def PBMC():
+    """PBMC dataset."""
+    name = 'PBMC'
+    parameters = {
+    }
+
 
 @ingredient.named_config
 def FashionMNIST():
@@ -35,6 +42,13 @@ def FashionMNIST():
 def CIFAR():
     """CIFAR10 dataset."""
     name = 'CIFAR'
+    parameters = {
+    }
+
+@ingredient.named_config
+def BloodMNIST():
+    """BloodMNIST dataset."""
+    name = 'BloodMNIST'
     parameters = {
     }
 

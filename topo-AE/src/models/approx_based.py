@@ -25,6 +25,7 @@ class TopologicallyRegularizedAutoencoder(AutoencoderModel):
         ae_kwargs = ae_kwargs if ae_kwargs else {}
         toposig_kwargs = toposig_kwargs if toposig_kwargs else {}
         self.topo_sig = TopologicalSignatureDistance(**toposig_kwargs)
+        # print("Topological noise addition")
         self.autoencoder = getattr(submodules, autoencoder_model)(**ae_kwargs)
         self.latent_norm = torch.nn.Parameter(data=torch.ones(1),
                                               requires_grad=True)
@@ -35,7 +36,7 @@ class TopologicallyRegularizedAutoencoder(AutoencoderModel):
         distances = torch.norm(x_flat[:, None] - x_flat, dim=2, p=p)
         return distances
 
-    def forward(self, x):
+    def forward(self, x, noise_std = 0.025):
         """Compute the loss of the Topologically regularized autoencoder.
 
         Args:
@@ -45,6 +46,8 @@ class TopologicallyRegularizedAutoencoder(AutoencoderModel):
             Tuple of final_loss, (...loss components...)
 
         """
+        # x = x + torch.randn_like(x) * noise_std
+
         latent = self.autoencoder.encode(x)
 
         x_distances = self._compute_distance_matrix(x)

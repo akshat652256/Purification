@@ -4,6 +4,8 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from .datasets.splitting import split_dataset
 import numpy as np
+from torchsummary import summary
+
 
 class TrainingLoop():
     """Training a model using a dataset."""
@@ -61,6 +63,7 @@ class TrainingLoop():
         n_epochs = self.n_epochs
         batch_size = self.batch_size
         learning_rate = self.learning_rate
+        # summary(model, input_size=(3, 32, 32))
 
         n_instances = len(dataset)
         # TODO: Currently we drop the last batch as it might not evenly divide
@@ -73,6 +76,9 @@ class TrainingLoop():
         optimizer = torch.optim.Adam(
             model.parameters(), lr=learning_rate,
             weight_decay=self.weight_decay)
+
+
+
 
         epoch = 1
         for epoch in range(1, n_epochs+1):
