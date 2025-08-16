@@ -25,7 +25,7 @@ def save_model_path(model, model_type):
 import os
 import torch
 
-def load_model_from_path(model_type, dataset, device='cuda' if torch.cuda.is_available() else 'cpu', detector_variant=None):
+def load_model_from_path(model_type, device='cuda' if torch.cuda.is_available() else 'cpu', detector_variant=None):
     """
     Load a trained model of the specified type for a given dataset from saved model path.
 
