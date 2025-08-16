@@ -25,23 +25,28 @@ def get_dataloaders(data_flag, batch_size=64, download=True):
     return train_loader, val_loader, test_loader
 
 def get_dataloader_MNIST(batch_size=64, download=True):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    # Transformations applied to data (converts to tensor and normalizes)
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
     
-    # Load MNIST with normalization
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
-    full_train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
+    # Download and load full MNIST training dataset
+    full_train_dataset = datasets.MNIST(root='./data', train=True, download=download, transform=transform)
     
-    # Create train and validation splits (e.g., 90% train, 10% val)
+    # Create validation split (e.g., 10% of training data for val)
     val_size = int(0.1 * len(full_train_dataset))
     train_size = len(full_train_dataset) - val_size
+    
     train_dataset, val_dataset = random_split(full_train_dataset, [train_size, val_size])
     
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
-    test_loader = DataLoader(datasets.MNIST('./data', train=False, download=True, transform=transform),
-                             batch_size=64, shuffle=False)
-
+    # Load test dataset
+    test_dataset = datasets.MNIST(root='./data', train=False, download=download, transform=transform)
+    
+    # DataLoaders
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     return train_loader, val_loader, test_loader
 
