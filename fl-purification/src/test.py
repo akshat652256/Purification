@@ -18,6 +18,8 @@ def parse_args():
                         help='Attack type')
     parser.add_argument('--strength', type=str, default='strong', choices=['weak', 'strong', None],
                         help="Attack strength")
+    parser.add_argument('--reformer_type',type=str, default = 'AE', choices=['AE','TopoAE'],
+                        help="Reformer Type")
     return parser.parse_args()
 
 

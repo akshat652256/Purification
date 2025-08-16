@@ -1,0 +1,50 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+class LatentNet(nn.Module):
+    # Small MLP to process latent vector of shape [batch_size, 2]
+    def __init__(self, latent_dim=2, bottleneck_h=16, bottleneck_w=16):
+        super().__init__()
+        # The fully connected neural net to expand latent -> bottleneck size
+        self.fc = nn.Sequential(
+            nn.Linear(latent_dim, 32),
+            nn.ReLU(),
+            nn.Linear(32, bottleneck_h * bottleneck_w)
+        )
+        self.bottleneck_h = bottleneck_h
+        self.bottleneck_w = bottleneck_w
+
+    def forward(self, z):
+        out = self.fc(z)                 # (batch_size, bottleneck_h * bottleneck_w)
+        out = out.view(-1, 1, self.bottleneck_h, self.bottleneck_w)  # (batch_size, 1, H, W)
+        return out
+
+
+class LatentReformer(nn.Module):
+    def __init__(self, bottleneck_h=14, bottleneck_w=14):
+        super().__init__()
+        # Encoder
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 1, kernel_size=3, padding=1),
+            nn.Sigmoid(),
+            nn.AvgPool2d(kernel_size=2),
+            nn.Conv2d(1, 1, kernel_size=3, padding=1),
+            nn.Sigmoid()
+        )
+        self.decoder = nn.Sequential(
+            nn.Conv2d(2, 1, kernel_size=3, padding=1),   # Now input has 2 channels after concat
+            nn.Sigmoid(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(1, 1, kernel_size=3, padding=1),
+            nn.Sigmoid(),
+            nn.Conv2d(1, 1, kernel_size=3, padding=1)
+        )
+        self.bottleneck_h = bottleneck_h
+        self.bottleneck_w = bottleneck_w
+
+    def forward(self, img, latent_bottleneck):
+        x = self.encoder(img)  
+        x = torch.cat([x, latent_bottleneck], dim=1)  
+        x = self.decoder(x)
+        return x

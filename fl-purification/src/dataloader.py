@@ -4,16 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 
 class AdversarialDataset(Dataset):
     def __init__(self, base_dir, dataset_name, attack_type, strength=None):
-        """
-        Initializes dataset by scanning the directory with saved batches.
-        Automatically prepends the Kaggle input root path.
-
-        Args:
-            base_dir (str): Base directory (e.g., "medmnist", "Others")
-            dataset_name (str): Dataset name (e.g., "bloodmnist")
-            attack_type (str): Attack type string ('fgsm', 'pgd', 'cw')
-            strength (str or None): strength ('weak', 'strong')
-        """
+        
         # Set the Kaggle input root - fixed dataset root folder in Kaggle environment
         kaggle_input_root = '/kaggle/input/purification'  # Set your Kaggle dataset root here
 
@@ -31,8 +22,6 @@ class AdversarialDataset(Dataset):
             if f.endswith('.pt')
         ])
 
-        # Preload all batches into memory for quick access (optional)
-        # If dataset is very large, consider lazy loading in __getitem__ instead
         self.data = []
         for batch_file in self.batch_files:
             batch_path = os.path.join(self.dir_path, batch_file)
@@ -42,19 +31,9 @@ class AdversarialDataset(Dataset):
         self.num_batches = len(self.data)
 
     def __len__(self):
-        """ Returns the number of batches available """
         return self.num_batches
 
     def __getitem__(self, idx):
-        """
-        Returns the batch at index idx as a tuple (images, labels).
-
-        Args:
-            idx (int): batch index
-
-        Returns:
-            tuple: images tensor and labels tensor for the batch
-        """
         if idx < 0 or idx >= self.num_batches:
             raise IndexError(f"Index {idx} out of range for {self.num_batches} batches")
 
@@ -64,3 +43,19 @@ class AdversarialDataset(Dataset):
 
         return images, labels
 
+class MNISTTopoDataset(Dataset):
+    def __init__(self, clean_images, topo_images, labels, latents):
+        self.clean_images = clean_images
+        self.topo_images = topo_images
+        self.labels = labels
+        self.latents = latents
+
+    def __len__(self):
+        return len(self.clean_images)
+
+    def __getitem__(self, idx):
+        clean = torch.tensor(self.clean_images[idx], dtype=torch.float32)
+        topo = torch.tensor(self.topo_images[idx], dtype=torch.float32)
+        label = torch.tensor(self.labels[idx], dtype=torch.long)
+        latent = torch.tensor(self.latents[idx], dtype=torch.float32)
+        return clean, topo, label, latent

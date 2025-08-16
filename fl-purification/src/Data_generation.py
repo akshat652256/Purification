@@ -8,7 +8,8 @@ import shutil
 from utils.misc.Attacks import fgsm_attack,pgd_attack,carlini_attack
 from models.Classifier.CNN import MNIST_CNN
 from models.Defensive_models.AE import DetectorIReformer,DetectorII
-
+from dataloader import MNISTTopoDataset
+import numpy as np
 
 
 def get_dataloader_MNIST(batch_size=64, download=True):
@@ -32,23 +33,42 @@ def get_dataloader_MNIST(batch_size=64, download=True):
     
     return train_loader, val_loader, test_loader
 
-def load_mnist_model(model_path='/kaggle/input/classifiers/Pretrained_classifiers/mnist.pth', device='cpu'):
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found at {model_path}")
 
-    model = MNIST_CNN()
+def load_model(model_name='mnist.pth', device='cpu'):
+    """
+    Load the specified pretrained classifier model from given path.
+
+    Parameters:
+    model_name : str
+        Name of the model file (e.g., 'mnist.pth', 'mnist_AE1.pth', 'mnist_AE2.pth').
+    device : str
+        'cpu' or 'cuda' depending on device usage.
+
+    Returns:
+    model : torch.nn.Module
+        Loaded and ready-to-evaluate model.
+    """
+
+    model_path = f'/kaggle/input/classifiers/Pretrained_classifiers/{model_name}'
+    
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Classifier model '{model_name}' not found at {model_path}")
+
+    # Select architecture depending on the file
+    if "AE1" in model_name:
+        model = DetectorIReformer()  # Replace with your AE1 architecture
+    elif "AE2" in model_name:
+        model = DetectorII()  # Replace with your AE2 architecture
+    else:
+        model = MNIST_CNN()  # Standard MNIST model
+
+    # Load weights
     state_dict = torch.load(model_path, map_location=device)
     model.load_state_dict(state_dict)
+    
     model.to(device)
     model.eval()
     return model
-
-
-import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset
-from torchattacks import CW
-
 
 def generate_perturbed_full_loader(model, dataloader, attack_type='cw', device='cuda', **attack_params):
     """
