@@ -322,27 +322,20 @@ def main():
 
 from PIL import Image
 
-def infer_single_image(
-    image_path_or_array,
-    model_path,
-    device='cpu'
-):
+def load_trained_model(model_path, device='cpu'):
     """
-    Perform inference on a single image using the pre-trained MNIST Topological Autoencoder.
+    Load the pre-trained MNIST Topological Autoencoder once.
     
     Args:
-        image_path_or_array: Path to image file (str) or numpy array/PIL Image
         model_path: Path to pre-trained model (.pth file)
         device: Device to run inference on ('cpu' or 'cuda')
     
     Returns:
-        tuple: (latent_representation, reconstructed_image)
-            - latent_representation: numpy array of shape (latent_dim,)
-            - reconstructed_image: numpy array of shape (1, 28, 28) for MNIST
+        model: Loaded model ready for inference
     """
-    
-    # Load and prepare the model
     print("Loading pre-trained model...")
+    
+    # Initialize model with MNIST configuration
     model = TopologicallyRegularizedAutoencoder(
         autoencoder_model='DeepAE',
         lam=0.5002972000959738,
@@ -357,13 +350,30 @@ def infer_single_image(
         print("Model loaded successfully!")
     except Exception as e:
         print(f"Error loading model: {e}")
-        return None, None
+        return None
     
     if device == 'cuda' and torch.cuda.is_available():
         model = model.cuda()
+        print("Model moved to CUDA")
     elif device == 'cuda':
         print("CUDA requested but not available, using CPU")
-        device = 'cpu'
+    
+    return model
+
+def infer_with_loaded_model(model, image_path_or_array, device='cpu'):
+    """
+    Perform inference on a single image using an already loaded model.
+    
+    Args:
+        model: Pre-loaded model from load_trained_model()
+        image_path_or_array: Path to image file (str) or numpy array/PIL Image
+        device: Device the model is on ('cpu' or 'cuda')
+    
+    Returns:
+        tuple: (latent_representation, reconstructed_image)
+            - latent_representation: numpy array of shape (latent_dim,)
+            - reconstructed_image: numpy array of shape (1, 28, 28) for MNIST
+    """
     
     # Prepare the image
     if isinstance(image_path_or_array, str):
@@ -391,8 +401,6 @@ def infer_single_image(
         image_tensor = image_tensor.cuda()
     
     # Perform inference
-    print("Running inference...")
-    model.eval()
     with torch.no_grad():
         # Get latent representation
         latent = model.encode(image_tensor)
@@ -406,10 +414,6 @@ def infer_single_image(
         
         # Convert reconstruction back to [0, 1] range for display
         reconstructed_np = (reconstructed_np + 1.0) / 2.0
-        
-    print(f"Inference completed!")
-    print(f"Latent shape: {latent_np.shape}")
-    print(f"Reconstructed image shape: {reconstructed_np.shape}")
     
     return latent_np, reconstructed_np
 
