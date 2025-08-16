@@ -135,7 +135,7 @@ def zip_directory(dir_path, zip_output_path):
     print(f"Files zipped successfully to {zip_output_path}")
     return zip_output_path
 
-def load_classifier(dataset, device='cpu'):
+def load_classifier(base_dir,dataset, device='cpu'):
     """
     Load the pretrained classifier model weights based on dataset name.
     """
@@ -144,9 +144,9 @@ def load_classifier(dataset, device='cpu'):
         raise FileNotFoundError(f"Classifier model for dataset '{dataset}' not found at {model_path}")
 
     # Choose model architecture according to dataset
-    if dataset.lower() == 'medmnist':
+    if base_dir.lower() == 'medmnist':
         model = MEDMNIST_CNN()
-    elif dataset.lower() == 'mnist':
+    elif base_dir.lower() == 'others':
         model = MNIST_CNN()
     else:
         raise ValueError(f"Unknown dataset '{dataset}'. Supported: 'mnist', 'medmnist'.")
