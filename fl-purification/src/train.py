@@ -43,33 +43,16 @@ def load_model_from_path(model_type, device='cuda' if torch.cuda.is_available() 
     model_path = os.path.join(model_dir, f'{model_type}_model.pth')
 
     # Select model architecture based on dataset and model_type
-    if dataset.lower() == 'medmnist':
-        if model_type == 'classifier':
-            model = MEDMNIST_CNN()
-        elif model_type == 'detector':
-            model = MEDMNIST_AE()
-        elif model_type == 'reformer':
-            model = MEDMNIST_AE()
-        else:
-            raise ValueError(f"Unknown model_type: {model_type}")
 
-    elif dataset.lower() == 'mnist':
-        if model_type == 'classifier':
-            model = MNIST_CNN()
-        elif model_type == 'detector':
-            if detector_variant == 'D1':
-                model = DetectorIReformer()
-            elif detector_variant == 'D2':
-                model = DetectorII()
-            else:
-                raise ValueError("For MNIST detector, specify detector_variant='D1' or 'D2'.")
-        elif model_type == 'reformer':
-            model = DetectorIReformer()
-        else:
-            raise ValueError(f"Unknown model_type: {model_type}")
-
+    if model_type == 'classifier':
+        model = MEDMNIST_CNN()
+    elif model_type == 'detector':
+        model = MEDMNIST_AE()
+    elif model_type == 'reformer':
+        model = MEDMNIST_AE()
     else:
-        raise ValueError(f"Unsupported dataset: {dataset}")
+        raise ValueError(f"Unknown model_type: {model_type}")
+
 
     # Load saved weights
     if os.path.exists(model_path):
@@ -77,7 +60,6 @@ def load_model_from_path(model_type, device='cuda' if torch.cuda.is_available() 
         model.load_state_dict(state_dict)
         model.to(device)
         model.eval()
-        print(f"Loaded {model_type} model for {dataset} from {model_path}")
     else:
         raise FileNotFoundError(f"Model file not found at {model_path}")
 
