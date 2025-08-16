@@ -23,6 +23,78 @@ def softmax_with_temperature(logits, T):
     """
     return F.softmax(logits / T, dim=-1)
 
+def compute_thresholds_mnist(detector_1, detector_2, val_loader, device):
+    detector_1.to(device)
+    detector_2.to(device)
+    detector_1.eval()
+    detector_2.eval()
+
+    l1_total = 0.0
+    l2_total = 0.0
+    count = 0
+
+    with torch.no_grad():
+        for images, _ in val_loader:
+            images = images.to(device)
+            outputs_1 = detector_1(images)
+            outputs_2 = detector_2(images)
+
+            # L1 norm (mean absolute error) per sample
+            l1_err = torch.mean(torch.abs(images - outputs_1), dim=[1, 2, 3])
+            # L2 norm (mean squared error) per sample
+            l2_err = torch.mean((images - outputs_2) ** 2, dim=[1, 2, 3])
+
+            l1_total += l1_err.sum().item()
+            l2_total += l2_err.sum().item()
+            count += images.size(0)
+
+    avg_l1 = l1_total / count
+    avg_l2 = l2_total / count
+
+    # Return both average L1 and average L2 reconstruction errors
+    return avg_l1, avg_l2
+
+def filter_mnist(detector_1, threshold_1, detector_2, threshold_2, adversarial_loader, device):
+    detector_1.to(device)
+    detector_2.to(device)
+    detector_1.eval()
+    detector_2.eval()
+
+    accepted_images = []
+    accepted_labels = []
+
+    with torch.no_grad():
+        for images, labels in adversarial_loader:
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs_1 = detector_1(images)
+            outputs_2 = detector_2(images)
+
+            # L1 reconstruction error per sample for detector_1
+            l1_err = torch.mean(torch.abs(images - outputs_1), dim=[1, 2, 3])
+            # L2 reconstruction error per sample for detector_2
+            l2_err = torch.mean((images - outputs_2) ** 2, dim=[1, 2, 3])
+            # Condition: errors below respective thresholds
+            mask = (l1_err < threshold_1) & (l2_err < threshold_2)
+
+            # Collect only accepted images and corresponding labels
+            if mask.any():
+                accepted_images.append(images[mask].cpu())
+                accepted_labels.append(labels[mask].cpu())
+
+    if len(accepted_images) == 0:
+        print("No images passed the filtering criteria.")
+        return None
+
+    # Concatenate all accepted images and labels
+    filtered_images = torch.cat(accepted_images)
+    filtered_labels = torch.cat(accepted_labels)
+
+    # Create a TensorDataset and DataLoader with the filtered subset
+    filtered_dataset = TensorDataset(filtered_images, filtered_labels)
+    filtered_loader = DataLoader(filtered_dataset, batch_size=adversarial_loader.batch_size, shuffle=False)
+
+    return filtered_loader
 
 def compute_thresholds(classifier_model, detector_model, val_loader, device='cuda' if torch.cuda.is_available() else 'cpu'):
     import collections

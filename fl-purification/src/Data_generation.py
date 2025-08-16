@@ -1,14 +1,15 @@
 import os
 import torch
-from torch.utils.data import DataLoader, TensorDataset
-import torchvision.transforms as transforms
+from torch.utils.data import DataLoader, TensorDataset, random_split
+from torchvision import datasets, transforms
 import medmnist
 from medmnist import INFO
 import torch.nn.functional as F
 from torchattacks import CW
 import shutil
 from utils.misc.Attacks import fgsm_attack,pgd_attack,carlini_attack
-from models.Classifier.CNN import MEDMNIST_CNN
+from models.Classifier.CNN import *
+from models.Defensive_models.AE import *
 
 def get_dataloaders(data_flag, batch_size=64, download=True):
     info = INFO[data_flag]
@@ -23,6 +24,26 @@ def get_dataloaders(data_flag, batch_size=64, download=True):
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
     return train_loader, val_loader, test_loader
 
+def get_dataloader_MNIST(batch_size=64, download=True):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    
+    # Load MNIST with normalization
+    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+    full_train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
+    
+    # Create train and validation splits (e.g., 90% train, 10% val)
+    val_size = int(0.1 * len(full_train_dataset))
+    train_size = len(full_train_dataset) - val_size
+    train_dataset, val_dataset = random_split(full_train_dataset, [train_size, val_size])
+    
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
+    test_loader = DataLoader(datasets.MNIST('./data', train=False, download=True, transform=transform),
+                             batch_size=64, shuffle=False)
+
+    
+    return train_loader, val_loader, test_loader
 
 def generate_perturbed_full_loader(model, dataloader, attack_type='cw', device='cuda', **attack_params):
     """
@@ -122,14 +143,51 @@ def load_classifier(dataset, device='cpu'):
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Classifier model for dataset '{dataset}' not found at {model_path}")
 
-    # Initialize your model architecture (adjust according to your model)
-    model = MEDMNIST_CNN()
-    
-    # Load the state dictionary
+    # Choose model architecture according to dataset
+    if dataset.lower() == 'medmnist':
+        model = MEDMNIST_CNN()
+    elif dataset.lower() == 'mnist':
+        model = MNIST_CNN()
+    else:
+        raise ValueError(f"Unknown dataset '{dataset}'. Supported: 'mnist', 'medmnist'.")
+
+    # Load pretrained weights
     state_dict = torch.load(model_path, map_location=device)
     model.load_state_dict(state_dict)
-    
+
     model.to(device)
     model.eval()
     return model
 
+import os
+import torch
+
+def load_mnist_model(model_type='classifier', device='cpu'):
+    """
+    Load the MNIST model based on the specified type with pretrained weights.
+    model_type can be one of: 'classifier', 'detector1', 'detector2', 'reformer'
+    """
+    if model_type == 'classifier':
+        model = MNIST_CNN()
+        model_path = '/kaggle/input/classifiers/Pretrained_classifiers/mnist.pth'
+    elif model_type == 'detector1':
+        model = DetectorIReformer()
+        model_path = '/kaggle/input/classifiers/Pretrained_classifiers/mnist_AE1.pth'
+    elif model_type == 'detector2':
+        model = DetectorII()
+        model_path = '/kaggle/input/classifiers/Pretrained_classifiers/mnist_AE2.pth'
+    elif model_type == 'reformer':
+        model = DetectorIReformer()
+        model_path = '/kaggle/input/classifiers/Pretrained_classifiers/mnist_AE1.pth'
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
+
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model weights not found at {model_path}")
+
+    state_dict = torch.load(model_path, map_location=device)
+    model.load_state_dict(state_dict)
+
+    model.to(device)
+    model.eval()
+    return model

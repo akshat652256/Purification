@@ -6,8 +6,8 @@ import torchvision.transforms as transforms
 import medmnist
 from medmnist import INFO
 from trainer import train_classifier, train_autoencoder
-from models.Classifier.CNN import MEDMNIST_CNN
-from models.Defensive_models.AE import MEDMNIST_AE
+from models.Classifier.CNN import *
+from models.Defensive_models.AE import *
 from Data_generation import get_dataloaders
 from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 import numpy as np
@@ -22,13 +22,18 @@ def save_model_path(model, model_type):
     print(f"Model saved to {save_path}")
 
 
-def load_model_from_path(model_type, device='cuda' if torch.cuda.is_available() else 'cpu'):
+import os
+import torch
+
+def load_model_from_path(model_type, dataset, device='cuda' if torch.cuda.is_available() else 'cpu', detector_variant=None):
     """
-    Load a trained model of the specified type from the predefined saved model path.
+    Load a trained model of the specified type for a given dataset from saved model path.
 
     Args:
         model_type (str): One of 'classifier', 'detector', 'reformer'.
+        dataset (str): Dataset name, e.g. 'medmnist' or 'mnist'.
         device (str): Device to map the model to ('cuda' or 'cpu').
+        detector_variant (str or None): For 'detector' model_type, choose variant 'D1' or 'D2'.
 
     Returns:
         model: The loaded model with weights.
@@ -37,26 +42,47 @@ def load_model_from_path(model_type, device='cuda' if torch.cuda.is_available() 
     model_dir = os.path.join(base_dir, model_type.capitalize())
     model_path = os.path.join(model_dir, f'{model_type}_model.pth')
 
-    # Instantiate model architecture based on model_type
-    if model_type == 'classifier':
-        model = MEDMNIST_CNN()
-    elif model_type == 'detector':
-        model = MEDMNIST_AE()
-    elif model_type == 'reformer':
-        model = MEDMNIST_AE()
+    # Select model architecture based on dataset and model_type
+    if dataset.lower() == 'medmnist':
+        if model_type == 'classifier':
+            model = MEDMNIST_CNN()
+        elif model_type == 'detector':
+            model = MEDMNIST_AE()
+        elif model_type == 'reformer':
+            model = MEDMNIST_AE()
+        else:
+            raise ValueError(f"Unknown model_type: {model_type}")
+
+    elif dataset.lower() == 'mnist':
+        if model_type == 'classifier':
+            model = MNIST_CNN()
+        elif model_type == 'detector':
+            if detector_variant == 'D1':
+                model = DetectorIReformer()
+            elif detector_variant == 'D2':
+                model = DetectorII()
+            else:
+                raise ValueError("For MNIST detector, specify detector_variant='D1' or 'D2'.")
+        elif model_type == 'reformer':
+            model = DetectorIReformer()
+        else:
+            raise ValueError(f"Unknown model_type: {model_type}")
+
     else:
-        raise ValueError(f"Unknown model_type: {model_type}")
+        raise ValueError(f"Unsupported dataset: {dataset}")
 
     # Load saved weights
     if os.path.exists(model_path):
-        model.load_state_dict(torch.load(model_path, map_location=device))
+        state_dict = torch.load(model_path, map_location=device)
+        model.load_state_dict(state_dict)
         model.to(device)
         model.eval()
-        print(f"Loaded {model_type} model from {model_path}")
+        print(f"Loaded {model_type} model for {dataset} from {model_path}")
     else:
         raise FileNotFoundError(f"Model file not found at {model_path}")
 
     return model
+
 
 def main():
     parser = argparse.ArgumentParser(description="Train a model on MedMNIST dataset")
