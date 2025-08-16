@@ -31,7 +31,7 @@ def main():
         # Load classifier and detector models for MedMNIST
         classifier_model = load_classifier(args.base_dir,args.dataset, device=device)
         detector_model = load_model_from_path(model_type='detector', device=device)
-        reformer_model = load_model_from_path(model_type='reformer', device=device)
+        reformer_model = load_model_from_path(model_type='detector', device=device)
     else:
         # Load classifier and detector models for other datasets
         classifier_model = load_mnist_model(model_type='classifier',device=device)
