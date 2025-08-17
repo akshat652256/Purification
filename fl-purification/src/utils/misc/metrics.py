@@ -306,3 +306,22 @@ def classify_images(classifier_model, perturbed_loader, device='cpu'):
     f1 = f1_score(all_labels, all_preds, average='macro')
     print(f"F1 score of images classification: {f1:.4f}")
     return f1
+
+def classify_topomodel(classifier, val_loader, device):
+    classifier.eval()
+    all_labels = []
+    all_preds = []
+
+    with torch.no_grad():
+        for _, topo_img, label, _ in val_loader:  # Only topo images and labels are needed
+            topo_img = topo_img.to(device)
+            label = label.to(device)
+
+            logits = classifier(topo_img)
+            preds = torch.argmax(logits, dim=1)
+
+            all_labels.extend(label.cpu().numpy())
+            all_preds.extend(preds.cpu().numpy())
+
+    f1 = f1_score(all_labels, all_preds, average='macro')
+    print(f"F1 score (topo images): {f1:.4f}")
