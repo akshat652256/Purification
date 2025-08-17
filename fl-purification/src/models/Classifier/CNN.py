@@ -117,8 +117,12 @@ class CIFAR10_CNN(nn.Module):
         return x  
 
 
-
-class EMNIST(nn.Module):
+class EMNIST_CNN(nn.Module):
+    """
+    # epochs = 100 
+    # train acc = 0.9565
+    # val acc = 0.9313
+    """
     def __init__(self, num_classes=26):  
         super(EMNIST, self).__init__()
         self.features = nn.Sequential(
