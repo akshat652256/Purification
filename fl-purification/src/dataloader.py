@@ -65,3 +65,20 @@ class AdversarialDataset(Dataset):
 
         return images, labels
 
+
+class MNISTTopoDataset(Dataset):
+    def __init__(self, clean_images, topo_images, labels, latents):
+        self.clean_images = clean_images
+        self.topo_images = topo_images
+        self.labels = labels
+        self.latents = latents
+
+    def __len__(self):
+        return len(self.clean_images)
+
+    def __getitem__(self, idx):
+        clean = torch.tensor(self.clean_images[idx], dtype=torch.float32)
+        topo = torch.tensor(self.topo_images[idx], dtype=torch.float32)
+        label = torch.tensor(self.labels[idx], dtype=torch.long)
+        latent = torch.tensor(self.latents[idx], dtype=torch.float32)
+        return clean, topo, label, latent

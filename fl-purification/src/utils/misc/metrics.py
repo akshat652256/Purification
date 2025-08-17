@@ -1,7 +1,9 @@
 import torch
+import numpy as np
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset, Subset
 from sklearn.metrics import f1_score
+from dataloader import MNISTTopoDataset
 
 def jsd(P, Q, eps=1e-12):
     """
@@ -222,6 +224,28 @@ def get_adversarial_dataloader(adversarial_dataset, batch_size=64, shuffle=False
     # Return DataLoader with desired batch size
     loader = DataLoader(flat_dataset, batch_size=batch_size, shuffle=shuffle)
     return loader
+
+
+def get_advmnist_topo_loaders(attack_type, strength, batch_size=64):
+    """
+    attack_type: e.g., 'cw', 'pgd', etc.
+    strength: e.g., 'strong', 'weak', etc.
+    Loads the appropriate npz file and returns a DataLoader.
+    """
+    base_path = "/kaggle/input/invi_mnist_64/pytorch/default/1/"
+    file_name = f"adversarial_mnist_{attack_type}_{strength}_complete.npz"
+    npz_path = base_path + file_name
+
+    data = np.load(npz_path)
+    clean_images = data['original_images']
+    topo_images = data['reconstructed_images']
+    labels = data['labels']
+    latents = data['latents']
+    
+    full_dataset = MNISTTopoDataset(clean_images, topo_images, labels, latents)
+    full_loader = DataLoader(full_dataset, batch_size=batch_size, shuffle=False)
+    return full_loader
+
 
 def reconstruct_with_reformer(reformer_model, filtered_loader, device='cpu'):
     reformer_model.to(device)

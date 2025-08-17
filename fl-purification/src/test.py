@@ -4,10 +4,10 @@ from torch.utils.data import DataLoader, TensorDataset
 from train import load_model_from_path
 from Data_generation import get_dataloaders,get_dataloader_MNIST,load_classifier,load_mnist_model
 from utils.misc.metrics import *
-from dataloader import AdversarialDataset
+from dataloader import AdversarialDataset,MNISTTopoDataset
 from sklearn.metrics import f1_score  
 from utils.misc.metrics import get_adversarial_dataloader
-
+from topoAE.scripts.mnist_gen import load_trained_model
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Filter adversarial images with JSD threshold")
@@ -19,6 +19,8 @@ def parse_args():
                         help='Attack type')
     parser.add_argument('--strength', type=str, default='strong', choices=['weak', 'strong', None],
                         help="Attack strength")
+    parser.add_argument('--reformer_type', type=str, default='AE', choices=['AE','TopoAE'],
+                        help="Reformer Type")
     return parser.parse_args()
 
 
@@ -37,7 +39,10 @@ def main():
         classifier_model = load_mnist_model(model_type='classifier',device=device)
         detector_model1 = load_mnist_model(model_type='detector1', device=device)
         detector_model2 = load_mnist_model(model_type='detector2', device=device)
-        reformer_model = load_mnist_model(model_type='reformer', device=device)
+        if args.reformer_type == 'TopoAE':
+            reformer_model = load_trained_model("/kaggle/input/invi_mnist_64/pytorch/default/1/model_state.pth", device='cuda')
+        else:
+            reformer_model = load_mnist_model(model_type='reformer', device=device)
 
         
 
@@ -87,13 +92,19 @@ def main():
 
     # 3 Reformer only pipeline
     print(f"Reformer only pipeline")
-    reconstructed_loader = reconstruct_with_reformer(reformer_model, adversarial_loader, device=device)
-    classify_images(classifier_model,reconstructed_loader,device=device)
+    if args.reformer_type == "TopoAE":
+        reconstructed_loader = get_advmnist_topo_loaders(args.attack_type,args.strength)
+    else:
+        reconstructed_loader = reconstruct_with_reformer(reformer_model, adversarial_loader, device=device)
+        classify_images(classifier_model,reconstructed_loader,device=device)
 
     # 4 Full pipeline
     if filtered_loader is not None and len(filtered_loader.dataset) > 0:
         print(f"Full pipeline")
-        reconstructed_loader = reconstruct_with_reformer(reformer_model, filtered_loader, device=device)
+        if args.reformer_type == "TopoAE":
+            reconstructed_loader = get_advmnist_topo_loaders(args.attack_type,args.strength)
+        else:
+            reconstructed_loader = reconstruct_with_reformer(reformer_model, adversarial_loader, device=device)
         classify_images(classifier_model, reconstructed_loader, device=device)
 
 
